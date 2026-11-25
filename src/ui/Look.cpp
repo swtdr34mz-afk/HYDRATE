@@ -111,34 +111,44 @@ juce::Image relief(const std::vector<float> &h, int n, float strength, float fla
     return img;
 }
 } // namespace
+/* brushing: noise drawn out into long horizontal strokes (no relief: brushed metal and plastic are flat; their
+ * look is in the stroke and in how it catches the light) */
+static juce::Image brushed(int n, int seed, int longRad, int shortRad, float amp, float fine)
+{
+    juce::Random rnd(seed);
+    std::vector<float> a((size_t)(n * n)), b((size_t)(n * n));
+    for (auto &v : a) v = rnd.nextFloat();
+    for (auto &v : b) v = rnd.nextFloat();
+    boxBlur(a, n, longRad, true);
+    boxBlur(b, n, shortRad, true);
+    /* (a blur flattens the noise: stretch it back to its range) */
+    auto spread = [&](std::vector<float> &h) {
+        double m = 0, q = 0;
+        for (float v : h) { m += v; q += (double)v * v; }
+        m /= (double)h.size();
+        float sd = (float)std::sqrt(juce::jmax(1e-9, q / (double)h.size() - m * m));
+        for (float &v : h) v = (v - (float)m) / sd;
+    };
+    spread(a);
+    spread(b);
+    juce::Image img(juce::Image::ARGB, n, n, true, juce::SoftwareImageType());
+    juce::Image::BitmapData bd(img, juce::Image::BitmapData::writeOnly);
+    for (int y = 0; y < n; y++) {
+        float row = (rnd.nextFloat() - 0.5f) * 0.6f;               /* each line of the brushing a touch different */
+        for (int x = 0; x < n; x++) {
+            float v = (a[(size_t)(y * n + x)] * 0.7f + b[(size_t)(y * n + x)] * 0.5f + row) * amp + (rnd.nextFloat() - 0.5f) * fine;
+            int al = juce::jlimit(0, 255, (int)(std::fabs(v) * 255.0f));
+            bd.setPixelColour(x, y, v > 0 ? juce::Colour::fromRGBA(255, 255, 255, (uint8_t)al) : juce::Colour::fromRGBA(0, 0, 0, (uint8_t)al));
+        }
+    }
+    return img;
+}
 static const juce::Image &grain(float density)
 {
     int key = juce::jlimit(1, 8, (int)std::lround(density * 2.0f));
     auto &img = get().grain[key];
-    if (img.isNull()) {
-        const int n = 512;
-        juce::Random rnd(1234 + key);
-        /* the orange peel: bumps two to four texels wide */
-        std::vector<float> peel((size_t)(n * n)), brush((size_t)(n * n));
-        for (auto &v : peel) v = rnd.nextFloat();
-        boxBlur(peel, n, juce::jmax(1, (int)std::lround(1.2f * density)));
-        /* the brushing under it: long horizontal streaks */
-        for (auto &v : brush) v = rnd.nextFloat();
-        boxBlur(brush, n, 28, true);
-        std::vector<float> h((size_t)(n * n));
-        for (size_t i = 0; i < h.size(); i++)
-            h[i] = peel[i] * 1.0f + brush[i] * 0.9f;
-        img = relief(h, n, 0.42f, 0.035f, rnd);
-        /* pores and pinholes of the coat */
-        juce::Graphics g(img);
-        for (int i = 0; i < 380; i++) {
-            float x = rnd.nextFloat() * n, y = rnd.nextFloat() * n, r = 0.5f + rnd.nextFloat() * 0.9f;
-            g.setColour(juce::Colours::black.withAlpha(0.25f));
-            g.fillEllipse(x - r, y - r, 2 * r, 2 * r);
-            g.setColour(juce::Colours::white.withAlpha(0.14f));
-            g.fillEllipse(x - r + 0.6f, y - r + 0.8f, 2 * r, 2 * r);
-        }
-    }
+    if (img.isNull())
+        img = brushed(512, 1234 + key, juce::jmax(20, (int)(60 * density)), juce::jmax(3, (int)(8 * density)), 0.055f, 0.03f);
     return img;
 }
 static const juce::Image &mottle()
@@ -157,7 +167,7 @@ static const juce::Image &mottle()
         for (int y = 0; y < n; y++)
             for (int x = 0; x < n; x++) {
                 float v = (a[(size_t)(y * n + x)] - 0.5f) * 3.2f + (b[(size_t)(y * n + x)] - 0.5f) * 1.2f;
-                int al = juce::jlimit(0, 255, (int)(std::fabs(v) * 255.0f * 0.12f));
+                int al = juce::jlimit(0, 255, (int)(std::fabs(v) * 255.0f * 0.04f));
                 bd.setPixelColour(x, y, v > 0 ? juce::Colour::fromRGBA(255, 250, 240, (uint8_t)al) : juce::Colour::fromRGBA(0, 0, 8, (uint8_t)al));
             }
     }
@@ -167,21 +177,8 @@ static const juce::Image &sanded(float density)
 {
     int key = 200 + juce::jlimit(1, 8, (int)std::lround(density * 2.0f));
     auto &img = get().grain[key];
-    if (img.isNull()) {
-        /* sanded plastic: fine, even, no direction; tiny lit bumps and a few deeper sanding marks */
-        const int n = 384;
-        juce::Random rnd(77 + key);
-        std::vector<float> h((size_t)(n * n));
-        for (auto &v : h) v = rnd.nextFloat();
-        boxBlur(h, n, 1);
-        img = relief(h, n, 0.32f, 0.05f, rnd);
-        juce::Graphics g(img);
-        for (int i = 0; i < 260; i++) {
-            float x = rnd.nextFloat() * n, y = rnd.nextFloat() * n, a = rnd.nextFloat() * 6.3f, len = 2.0f + rnd.nextFloat() * 7.0f;
-            g.setColour(juce::Colours::white.withAlpha(0.05f + rnd.nextFloat() * 0.05f));
-            g.drawLine(x, y, x + std::cos(a) * len, y + std::sin(a) * len, 0.5f);
-        }
-    }
+    if (img.isNull())
+        img = brushed(384, 77 + key, juce::jmax(8, (int)(18 * density)), juce::jmax(2, (int)(3 * density)), 0.03f, 0.025f);
     return img;
 }
 static const juce::Image &rubber()
@@ -230,6 +227,16 @@ void drawSurface(juce::Graphics &g, juce::Rectangle<float> r, float)
     using namespace juce;
     float W = r.getWidth(), H = r.getHeight();
     Random rnd(4711);
+    {
+        /* brushed metal reflects in soft bands across its stroke */
+        ColourGradient bands(Colours::transparentWhite, r.getX(), r.getY(), Colours::transparentWhite, r.getX(), r.getBottom(), false);
+        bands.addColour(0.18, Colours::white.withAlpha(0.05f));
+        bands.addColour(0.33, Colours::transparentWhite);
+        bands.addColour(0.62, Colours::white.withAlpha(0.03f));
+        bands.addColour(0.8, Colours::transparentWhite);
+        g.setGradientFill(bands);
+        g.fillRect(r);
+    }
     /* old fingerprints and wiping marks: large, very faint, a little greasy (brighter in the light) */
     for (int i = 0; i < 16; i++) {
         float cx = r.getX() + rnd.nextFloat() * W, cy = r.getY() + rnd.nextFloat() * H, rad = 22.0f + rnd.nextFloat() * 70.0f;
@@ -254,7 +261,7 @@ void drawSurface(juce::Graphics &g, juce::Rectangle<float> r, float)
     }
     /* dust: specks sitting on the surface (a soft shadow to the bottom right, a lit top), more low down and along
      * the edges; a few fibres */
-    for (int i = 0; i < 3200; i++) {
+    for (int i = 0; i < 1800; i++) {
         float x = r.getX() + rnd.nextFloat() * W;
         float y = r.getY() + std::pow(rnd.nextFloat(), 0.65f) * H;
         if (rnd.nextFloat() < 0.2f)
@@ -318,7 +325,7 @@ void drawWell(juce::Graphics &g, juce::Rectangle<float> r, const juce::String &t
     g.drawLine(r.getRight() + 2.6f, r.getY() + 10, r.getRight() + 2.6f, r.getBottom() - 6, 1.0f);
     Path p;
     p.addRoundedRectangle(r, 8.0f);
-    g.setGradientFill(ColourGradient(Colour(0xff1f2023), r.getX(), r.getY(), Colour(0xff141517), r.getRight(), r.getBottom(), false));
+    g.setGradientFill(ColourGradient(Colour(0xff222326), r.getX(), r.getY(), Colour(0xff17181a), r.getRight(), r.getBottom(), false));
     g.fillPath(p);
     {
         Graphics::ScopedSaveState s(g);
@@ -331,7 +338,13 @@ void drawWell(juce::Graphics &g, juce::Rectangle<float> r, const juce::String &t
             for (float x = r.getX(); x < r.getRight(); x += tile)
                 g.drawImage(sd, Rectangle<float>(x, y, tile, tile), RectanglePlacement::stretchToFit);
         g.setOpacity(1.0f);
-        /* matte plastic scatters the light: a broad soft glow, no sharp sheen */
+        /* satin plastic: a soft band of light along its brushing */
+        ColourGradient band(Colours::transparentWhite, r.getX(), r.getY(), Colours::transparentWhite, r.getX(), r.getBottom(), false);
+        band.addColour(0.25, Colours::white.withAlpha(0.035f));
+        band.addColour(0.45, Colours::transparentWhite);
+        g.setGradientFill(band);
+        g.fillPath(p);
+        /* and a broad soft glow toward the light */
         g.setGradientFill(ColourGradient(Colours::white.withAlpha(0.05f), r.getX(), r.getY(), Colours::transparentWhite,
                                          r.getX() + r.getWidth() * 0.8f, r.getBottom(), false));
         g.fillPath(p);
