@@ -354,7 +354,7 @@ void Engine::startVoice(Voice &v, int key, int note, float vel, float det, bool 
             v.ph[o] = rp ? rnd01(v.seed) : 0.0f;
         for (auto &m : v.mu) {
             m.modPh = rp ? rnd01(v.seed) : 0.0f;
-            m.y1 = m.y2 = m.harmY = 0.0f;
+            m.y1 = m.y2 = m.harmY = m.harmN = 0.0f;
             m.hs.clear();
             for (int j = 0; j < 5; j++)
                 m.stack[j] = j == 2 ? 0.0f : rnd01(v.seed);
@@ -814,7 +814,7 @@ float Engine::evalChain(Voice &v, int o, int k, float x, bool main)
     float wet = 0.0f;
     switch (M.mode) {
     case MU_FM:
-        wet = evalChain(v, o, k - 1, x + M.d * FMI * M.sVal + M.fbT, false);
+        wet = evalChain(v, o, k - 1, x + minf(M.d, M.dMax) * FMI * M.sVal + M.fbT, false);
         break;
     case MU_STACK: {
         float s = 0.0f;
@@ -826,9 +826,20 @@ float Engine::evalChain(Voice &v, int o, int k, float x, bool main)
     case MU_SYNC: {
         float xm = M.syncSrc == o ? x : v.ph[M.syncSrc] + (x - v.ph[o]);
         float u = frac(xm * M.r);
-        float sp = u * (1.0f + 15.0f * M.d) + M.fbT;
+        float sp = u * minf(1.0f + 15.0f * M.d, M.sMax) + M.fbT;
         float win = 1.0f - M.w + M.w * (0.5f - 0.5f * fsin(u + 0.25f)) * 1.5f;
-        wet = evalChain(v, o, k - 1, sp, false) * win;
+        /* the reset's edge rounded over a few samples (else it aliases at high notes): invisible low down */
+        float del = minf(0.5f, 2.5f * v.inc[o] * M.r * minf(1.0f + 15.0f * M.d, M.sMax));
+        float ta = clampf(u / del, 0.0f, 1.0f), tb = clampf((1.0f - u) / del, 0.0f, 1.0f);
+        ta = ta * ta * (3.0f - 2.0f * ta);
+        tb = tb * tb * (3.0f - 2.0f * tb);
+        float base = evalChain(v, o, k - 1, sp, false);
+        float t = minf(ta, tb);
+        if (t < 1.0f) {
+            float y0 = evalChain(v, o, k - 1, 0.0f, false);    /* (where the reset lands) */
+            base = y0 + (base - y0) * t;
+        }
+        wet = base * win;
         break;
     }
     case MU_PWORIG:
@@ -858,7 +869,8 @@ float Engine::evalChain(Voice &v, int o, int k, float x, bool main)
             float in = m < 0.999f ? dry : evalChain(v, o, k - 1, x, false);
             float kq = M.hk;
             M.hs.step(in - M.fbT, M.hg, kq);
-            M.harmY = M.hs.bp * kq * 2.2f;
+            M.harmN = M.hs.bp * kq;                          /* (peak 1: what the feedback takes) */
+            M.harmY = softT(M.harmN * 2.2f * M.hMake * 0.5f) * 2.0f;
         }
         wet = M.harmY;
         break;
@@ -931,7 +943,7 @@ void Engine::voiceSetup(Voice &v)
         if (M.on) {
             float wf = 1.0f;
             switch (M.mode) {
-            case MU_FM: wf = 1.0f + dT * 4.0f * (M.src <= FS_TRI ? maxf(rT, 1.0f) : 3.0f) + M.f * 2.0f; break;
+            case MU_FM: wf = 1.0f + (M.src <= FS_TRI ? maxf(rT, 1.0f) : 3.0f) * (1.0f + 12.6f * dT) * 0.5f + M.f * 2.0f; break;
             case MU_SYNC: wf = rT * (1.0f + 15.0f * dT); break;
             case MU_PWORIG: case MU_PWSQZ: wf = rT * (1.0f + 4.0f * dT); break;
             case MU_PWASM: wf = 1.0f + dT * rT * 3.0f; break;
@@ -976,6 +988,16 @@ void Engine::voiceSetup(Voice &v)
         int bits = BITS_VAL[std::max(0, std::min(12, (int)P[b + OS_BITS]))];
         v.bitsQ[o] = bits ? (float)(1 << (bits - 1)) : 0.0f;
     }
+    /* FM: the deviation kept where its sidebands still fit under the rate (high notes stay clean, as on the
+     * instrument); the low and middle of the keyboard never reach it */
+    for (int mi = 0; mi < 4; mi++) {
+        Mut &M = v.mu[mi];
+        float r = M.src <= FS_TRI ? clampf(P[pMut(mi, MT_RATIO)], 0.25f, 64.0f) : 2.0f;
+        float room = 0.45f / maxf(v.incT[mi / 2] * r, 1e-6f);
+        M.dMax = maxf(0.0f, (room - 1.0f - 1.0f / r) / 12.6f);
+        /* (sync: the slave's speed kept under the rate the same way) */
+        M.sMax = maxf(1.0f, 0.45f / maxf(v.incT[mi / 2] * clampf(P[pMut(mi, MT_RATIO)], 0.25f, 64.0f), 1e-6f));
+    }
     /* Harmonic: a narrow band-pass at a harmonic of the oscillator; Depth sweeps it up the series */
     for (int mi = 0; mi < 4; mi++) {
         Mut &M = v.mu[mi];
@@ -986,6 +1008,7 @@ void Engine::voiceSetup(Voice &v)
         float fc = clampf(f0 * maxf(h, 0.02f), 5.0f, fs * 0.45f);
         M.hk = clampf(0.35f / maxf(h, 0.35f), 0.015f, 1.5f);
         M.hg = tanW(PI * fc / fs);
+        M.hMake = clampf(std::sqrt(maxf(h, 1.0f)), 1.0f, 5.0f);   /* (a harmonic high up is weaker: brought up) */
     }
     /* the mixer */
     bool series = (int)P[P_MX_ROUTE] == 0;
@@ -1029,7 +1052,9 @@ void Engine::voiceSetup(Voice &v)
     float c1 = P[P_F1_CUT] + keyC * P[P_F1_KT] / 100.0f + env1 * P[P_F1_ENV] / 64.0f * 128.0f * velScale(P[P_F1_VEL]) +
                lfo1 * P[P_F1_LFO] / 64.0f * 64.0f + v.cutOff;
     v.c1T = c1;
-    v.r1 = clampf(P[P_F1_RES] / 128.0f, 0.0f, 1.0f);
+    /* resonance: comes in by the knob's middle, as on the instrument (not only in the last quarter) */
+    auto resCurve = [](float r) { return 1.0f - std::pow(1.0f - r, 1.6f); };
+    v.r1 = resCurve(clampf(P[P_F1_RES] / 128.0f, 0.0f, 1.0f));
     v.drive = clampf(P[P_F1_DRIVE] / 128.0f, 0.0f, 1.0f);
     v.drvPost = P[P_F1_DRVPOST] > 0.5f;
     v.gateAmp = std::pow(clampf((c1 - 6.0f) / 96.0f, 0.0f, 1.0f), 1.6f);
@@ -1051,7 +1076,7 @@ void Engine::voiceSetup(Voice &v)
     v.f2Type = (int)P[P_F2_TYPE];
     v.c2T = P[P_F2_CUT] + keyC * P[P_F2_KT] / 100.0f + env1 * P[P_F2_ENV] / 64.0f * 128.0f * velScale(P[P_F2_VEL]) +
             lfo1 * P[P_F2_LFO] / 64.0f * 64.0f + v.cutOff;
-    v.r2 = clampf(P[P_F2_RES] / 128.0f, 0.0f, 1.0f);
+    v.r2 = resCurve(clampf(P[P_F2_RES] / 128.0f, 0.0f, 1.0f));
     v.morph = clampf(P[P_F2_MORPH] / 128.0f, 0.0f, 1.0f);
     /* the amp: Amp Level is the ceiling; LFO 2 and velocity only take away */
     float lvl = clampf(P[P_AMP_LEVEL] / 128.0f, 0.0f, 1.0f);
@@ -1059,7 +1084,7 @@ void Engine::voiceSetup(Voice &v)
     float lf = 1.0f - std::fabs(la) * 0.5f * (1.0f - (la >= 0.0f ? lfo2 : -lfo2));
     float vf = va >= 0.0f ? 1.0f - va * (1.0f - v.vel) : 1.0f + va * v.vel;
     float e2 = v.env[1].v;
-    v.ampT = e2 * e2 * lvl * clampf(lf, 0.0f, 1.0f) * clampf(vf, 0.0f, 1.0f) * 0.8f;
+    v.ampT = e2 * lvl * clampf(lf, 0.0f, 1.0f) * clampf(vf, 0.0f, 1.0f) * 0.8f;
 }
 
 float Engine::filter1(Voice &v, F1 &f, float x, float g, float res, float gateAmp)
@@ -1076,7 +1101,7 @@ float Engine::filter1(Voice &v, F1 &f, float x, float g, float res, float gateAm
     case F1_FAT24:
     case F1_8POLE: {
         float G = g / (1.0f + g), G2 = G * G, G4 = G2 * G2, oG = 1.0f - G;
-        float k = res * (t == F1_8POLE ? 3.9f : 4.1f);
+        float k = res * 4.15f;
         bool fat = t == F1_FAT12 || t == F1_FAT24;
         float xi = fat ? x * (1.0f + k) : x;
         float S = G * G2 * oG * f.s[0] + G2 * oG * f.s[1] + G * oG * f.s[2] + oG * f.s[3];
@@ -1107,8 +1132,11 @@ float Engine::filter1(Voice &v, F1 &f, float x, float g, float res, float gateAm
     case F1_3LER_LP:
     case F1_3LER_BP:
     case F1_3LER_HP: {
-        float G = g / (1.0f + g), oG = 1.0f - G, G3 = G * G * G;
-        float k = res * 7.8f;
+        /* (three poles peak where each turns 60 degrees: at sqrt(3) x their corner. The corner moved down so the
+         * peak, and the self-oscillation, sit on the cutoff) */
+        float g3 = g * 0.57735f;
+        float G = g3 / (1.0f + g3), oG = 1.0f - G, G3 = G * G * G;
+        float k = res * 8.6f;
         float S = G * G * oG * f.s[0] + G * oG * f.s[1] + oG * f.s[2];
         float y3 = (G3 * x + S) / (1.0f + k * G3);
         float u = softT(x - k * y3);
@@ -1122,7 +1150,7 @@ float Engine::filter1(Voice &v, F1 &f, float x, float g, float res, float gateAm
         if (t == F1_3LER_LP)
             y = st[2] * (1.0f + 0.15f * k);
         else if (t == F1_3LER_BP)
-            y = (st[0] - 2.0f * st[1] + st[2]) * 3.0f;
+            y = (st[0] - 2.0f * st[1] + st[2]) * 1.6f;
         else
             y = u - 3.0f * st[0] + 3.0f * st[1] - st[2];
         break;
@@ -1242,7 +1270,7 @@ void Engine::voiceRender(Voice &v, float *L, float *R)
                 case MU_PWORIG: M.fbT = M.f * 0.25f * y1; break;
                 case MU_PWSQZ: M.fbT = M.f * 0.5f * y1; break;
                 case MU_PWASM: M.fbT = M.f * 0.3f * yAvg; break;
-                case MU_HARM: M.fbT = M.f * 0.6f * M.harmY; break;
+                case MU_HARM: M.fbT = M.f * 0.6f * M.harmN; break;
                 case MU_PHAZ: M.fbT = M.f * 0.2f * y1; break;
                 default: break;
                 }
@@ -1281,15 +1309,15 @@ void Engine::voiceRender(Voice &v, float *L, float *R)
             float pink = (b[0] + b[1] + b[2] + b[3] + b[4] + b[5] + b[6] + w * 0.5362f) * 0.18f;
             b[6] = w * 0.115926f;
             v.brown = v.brown * 0.996f + w * 0.07f;
-            v.red = v.red * 0.997f + v.brown * 0.05f;
+            v.red = v.red * 0.985f + v.brown * 0.015f;
             float nz;
             switch (ntype) {
             case NT_PINK: nz = pink; break;
-            case NT_BROWN: nz = v.brown * 1.6f; break;
-            case NT_RED: nz = v.red * 3.5f; break;
+            case NT_BROWN: nz = v.brown * 0.75f; break;
+            case NT_RED: nz = v.red * 0.85f; break;
             case NT_BLUE: nz = (pink - v.prevP) * 2.2f; break;
             case NT_VIOLET: nz = (w - v.prevW) * 0.5f; break;
-            case NT_GREY: nz = v.brown * 1.1f + (w - v.prevW) * 0.18f + w * 0.12f; break;
+            case NT_GREY: nz = v.brown * 0.6f + (w - v.prevW) * 0.12f + w * 0.1f; break;
             default: nz = w * 0.6f; break;
             }
             v.prevW = w;

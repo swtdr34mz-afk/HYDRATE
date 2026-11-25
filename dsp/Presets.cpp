@@ -247,7 +247,7 @@ std::vector<Patch> build()
     {
         Maker m("Mutant Choir", "Vox");
         m.scan(0, {"Vokz 1", "Vokz 2", "Vokz 3", "Vokz 4", "Vokz 5"}, 1.0f).wave(1, "Glefan 2").set(pOsc(1, OS_CENT), 8)
-            .mut(0, MU_STACK, 1, 26, 60).mix(0, 112).mix(1, 64).f1(F1_VOWEL, 30, 70).set(P_F1_CTRL, 60)
+            .mut(0, MU_STACK, 1, 26, 60).mix(0, 112).mix(1, 64).f1(F1_VOWEL, 50, 40).set(P_F1_CTRL, 60)
             .env(1, 0.7f, 1.0f, 110, 1.8f).lfo(2, LW_TRI, 0.18f).lfo(3, LW_SINE, 0.09f)
             .mod(SRC_LFO1 + 2, "Filter 1", "Cutoff", 60).mod(SRC_LFO1 + 3, "Osc 1", "WaveScan", 110)
             .set(P_VO_WIDTH, 100).set(P_VO_AFEEL, 25).fx(0, FX_CHORUS, 1, 35).reverb(RT_HALL, 5.0f, 40, 25)
@@ -385,8 +385,8 @@ std::vector<Patch> build()
     }
     {
         Maker m("Surf Static", "FX");
-        m.mix(0, 0).mix(4, 120).set(P_RN_NOISE, NT_PINK).f1(F1_STN12BP, 60, 70).set(P_MX_ROUTE, 0).set(P_F2_MORPH, 64)
-            .set(P_F2_CUT, 70).set(P_F2_RES, 50).env(1, 2.0f, 1.0f, 128, 4.0f).lfo(2, LW_SINE, 0.09f).lfo(3, LW_SINE, 0.13f)
+        m.mix(0, 0).mix(4, 120).set(P_RN_NOISE, NT_PINK).f1(F1_STN12BP, 72, 30).set(P_MX_ROUTE, 0).set(P_F2_MORPH, 20)
+            .set(P_F2_CUT, 96).set(P_F2_RES, 30).env(1, 2.0f, 1.0f, 128, 4.0f).lfo(2, LW_SINE, 0.09f).lfo(3, LW_SINE, 0.13f)
             .mod(SRC_LFO1 + 2, "Filter 1", "Cutoff", 40).mod(SRC_LFO1 + 3, "Filter 2", "Cutoff", 40).mod(SRC_LFO1 + 3, "Mixer", "NoisePan", 64)
             .reverb(RT_CLOUD, 12.0f, 50, 50).macro(0, 1, {{D("Filter 1", "Cutoff"), 60}, {D("Filter 2", "Cutoff"), 60}});
         add(m);
@@ -436,6 +436,53 @@ std::vector<Patch> build()
         Maker m("Init Saw", "Init");
         add(m);
     }
+    /* level trim: every factory sound comes out at about the same loudness.
+       Amp Level takes the first part; if it would need more than full scale,
+       the mixer levels make up the rest. */
+    static const struct { const char *n; float g; } T[] = {
+        {"Liquid Glass", 0.95f},
+        {"Seven Heads", 1.51f},
+        {"Glass Clockwork", 0.59f},
+        {"Sync Serpent", 1.05f},
+        {"Velvet Squeeze", 0.62f},
+        {"Harmonic Rain", 1.29f},
+        {"Phase Pluck", 1.43f},
+        {"Warp Engine", 0.82f},
+        {"Mutant Choir", 4.00f},
+        {"Hydra Run", 0.98f},
+        {"Phrase Machine", 3.33f},
+        {"Step Garden", 1.20f},
+        {"Deep Water", 0.73f},
+        {"Bronze Section", 0.72f},
+        {"Electric Tines", 0.71f},
+        {"Orland Drawbars", 0.55f},
+        {"Cassette Keys", 0.74f},
+        {"Ring Foundry", 3.14f},
+        {"Wooden Gate", 1.09f},
+        {"Boutique Bass", 2.49f},
+        {"Steiner Scream", 0.33f},
+        {"Eight Pole Dusk", 1.42f},
+        {"Bit Hydra", 0.74f},
+        {"Unison Hydra", 0.34f},
+        {"Surf Static", 4.00f},
+        {"Squeezed Saw Keys", 0.87f},
+        {"Sub Mutant", 1.39f},
+        {"Cluster Bells", 1.47f},
+        {"Hydra Strings", 1.15f},
+        {"Flux Capacitor", 0.69f},
+    };
+    for (auto &p : v)
+        for (auto &t : T)
+            if (std::strcmp(p.name, t.n) == 0)
+            {
+                float want = p.v[P_AMP_LEVEL] * t.g;
+                float lv = want > 128.0f ? 128.0f : want;
+                float rest = want / lv;
+                p.v[P_AMP_LEVEL] = std::round(lv);
+                if (rest > 1.01f)
+                    for (int k = 0; k < 6; ++k)
+                        p.v[P_MX_VOL1 + k] = std::fmin(128.0f, std::round(p.v[P_MX_VOL1 + k] * rest));
+            }
     return v;
 }
 } // namespace

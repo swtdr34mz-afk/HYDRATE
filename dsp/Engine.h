@@ -92,14 +92,14 @@ private:
         uint32_t seed = 1;
     };
     struct Mut {
-        float modPh = 0.0f, y1 = 0.0f, y2 = 0.0f, harmY = 0.0f;
+        float modPh = 0.0f, y1 = 0.0f, y2 = 0.0f, harmY = 0.0f, harmN = 0.0f;
         float stack[5] = {};
         Svf hs;
         /* this chunk's (ramped) */
         int mode = 0;
         float r = 1, rI = 0, d = 0, dI = 0, m = 0, mI = 0, w = 0, f = 0, warp[9] = {};
         int src = 0, syncSrc = 0;
-        float sVal = 0, fbT = 0, spread = 0, hg = 0.01f, hk = 1.0f;
+        float sVal = 0, fbT = 0, spread = 0, hg = 0.01f, hk = 1.0f, hMake = 1.0f, dMax = 1.0f, sMax = 16.0f;
         bool on = false;
     };
     struct F1 {
