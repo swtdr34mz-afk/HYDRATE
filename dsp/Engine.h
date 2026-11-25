@@ -47,6 +47,11 @@ public:
     void setStep(int lfo, int step, float v);
     void setVoices(int n);
     void setQuality(int q) { os = q ? 2 : 1; }
+    /* LOW SPLIT: keys below the split note play one mono voice of their own (the last voice), the rest the patch as usual */
+    void setSplit(bool on, int note);
+    bool splitActive() const { return splitOn; }
+    /* VOICE SPREAD (0..1): each voice a little apart in the stereo field, in pitch and in its filter */
+    void setSpread(float s) { spread = s < 0.0f ? 0.0f : s > 1.0f ? 1.0f : s; }
     int voiceCount() const { return nVoices; }
 
     void noteOn(int note, float vel);
@@ -157,6 +162,15 @@ private:
     float sr = 44100.0f;
     uint32_t ageN = 0, rseed = 0x2545F491u;
     int rotNext = 0, lastVoice = -1;
+    bool splitOn = false;
+    int splitNote = 48, bassN = 0;
+    int8_t bassKeys[NKEYS] = {};
+    float bassVel[NKEYS] = {};
+    float spread = 0.0f;
+    int polyN() const { return splitOn ? nVoices - 1 : nVoices; }
+    int bassIdx() const { return nVoices - 1; }
+    void bassDown(int note, float vel);
+    void bassUp(int note);
 
     /* performance */
     float bendV = 0, mwV = 0, atV = 0, expV = 0, brV = 0, susV = 0;
@@ -167,6 +181,7 @@ private:
     int nKeys = 0, lastNote = 60;
     float lastPitch = 60.0f;
     bool sostHeld[128] = {};
+    bool splitHeld[128] = {};
 
     /* global LFOs (TrigSync Single / Off), vibrato */
     Lfo glfo[5];

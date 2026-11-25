@@ -15,7 +15,7 @@ namespace
 constexpr float DX = -404;                      /* (MAIN SYSTEMS and MASTER CONTROL: from their first place) */
 const juce::Rectangle<float> R_ARP(1004, 14, 506, 592), R_MAIN(666 + DX, 14, 240, 592), R_MC(918 + DX, 14, 478, 592),
     R_FC(14, 620, 486, 426), R_MS(512, 620, 998, 426), R_SETUP(22, 336, 226, 270), R_DISP(930 + DX, 210, 404, 158),
-    R_SMALL(746 + DX, 206, 148, 120);
+    R_SMALL(282, 204, 200, 112);
 const float ARPX[4] = {1094, 1208, 1322, 1432};
 const float MCX[4] = {976 + DX, 1078 + DX, 1180 + DX, 1282 + DX};
 const float FCX[5] = {104, 254, 404, 154, 304};
@@ -536,12 +536,22 @@ void Panel::build()
     /* MASTER VOLUME */
     {
         auto *vol = proc.apvts.getParameter("volume");
-        Ctl &c = knob(-1, 134, 250, 82, "MASTER\nVOLUME");
+        Ctl &c = knob(-1, 134, 268, 66, "MASTER VOLUME");
         c.getN = [vol] { return vol->getValue(); };
         c.setN = [vol](float n) { vol->setValueNotifyingHost(juce::jlimit(0.0f, 1.0f, n)); };
         c.begin = [vol] { vol->beginChangeGesture(); };
         c.end = [vol] { vol->endChangeGesture(); };
         c.defN = 0.7f;
+    }
+    /* VOICE SPREAD: the voices apart in the stereo field, a little in pitch and filter */
+    {
+        auto *sp = proc.apvts.getParameter("spread");
+        Ctl &c = knob(-1, 134, 172, 66, "VOICE SPREAD");
+        c.getN = [sp] { return sp->getValue(); };
+        c.setN = [sp](float n) { sp->setValueNotifyingHost(juce::jlimit(0.0f, 1.0f, n)); };
+        c.begin = [sp] { sp->beginChangeGesture(); };
+        c.end = [sp] { sp->endChangeGesture(); };
+        c.defN = 0.0f;
     }
     /* SETUP */
     auto apv = [P](const char *id) { return P->apvts.getParameter(id); };
@@ -592,23 +602,36 @@ void Panel::build()
         }
     }, [P] { return P->beatNow.load(); }, Lit::blue, 11.0f);
 
-    /* MAIN SYSTEMS */
+    /* MAIN SYSTEMS: one centre line, two equal columns below the display */
     {
         Ctl c;
         c.kind = Ctl::ENCODER;
-        c.r = {822 + DX - 52, 118 - 52, 104, 104};
+        c.r = {382 - 52, 116 - 52, 104, 104};
         ctls.push_back(c);
     }
-    button({678 + DX, 66, 60, 30}, "BROWSE", [this] {
+    constexpr float CL = 282, CR = 388, CW = 94, FW = 200;
+    button({CL, 334, CW, 32}, juce::String::fromUTF8("\xe2\x97\x80"), [this] { stepProgram(-1); }, [] { return false; }, Lit::white, 13.0f);
+    button({CR, 334, CW, 32}, juce::String::fromUTF8("\xe2\x96\xb6"), [this] { stepProgram(1); }, [] { return false; }, Lit::white, 13.0f);
+    button({CL, 396, CW, 32}, "BROWSE", [this] {
         auto r = getScreenBounds();
-        programMenu(r.withSize(10, 10).translated((int)((678 + DX) * getTransform().mat00), (int)(100 * getTransform().mat00)));
+        programMenu(r.withSize(10, 10).translated((int)(282.0f * getTransform().mat00), (int)(430 * getTransform().mat00)));
     }, [] { return false; }, Lit::orange, 11.5f);
-    button({678 + DX, 120, 60, 30}, "SAVE", [this] { saveDialog(); }, [] { return false; }, Lit::orange, 11.5f);
-    button({678 + DX, 300, 60, 30}, "INIT", [this] { initMenu(getScreenBounds().withSize(10, 10), false); }, [] { return false; }, Lit::white, 11.5f);
-    button({678 + DX, 354, 60, 30}, "RANDOM", [this] { initMenu(getScreenBounds().withSize(10, 10), true); }, [] { return false; }, Lit::white, 11.0f);
-    button({752 + DX, 346, 62, 32}, juce::String::fromUTF8("\xe2\x97\x80"), [this] { stepProgram(-1); }, [] { return false; }, Lit::white, 13.0f);
-    button({826 + DX, 346, 62, 32}, juce::String::fromUTF8("\xe2\x96\xb6"), [this] { stepProgram(1); }, [] { return false; }, Lit::white, 13.0f);
-    button({748 + DX, 420, 144, 44}, "HOME", [this] { open(M_HOME); }, [this] { return module == M_HOME; }, Lit::white, 15.0f);
+    button({CR, 396, CW, 32}, "SAVE", [this] { saveDialog(); }, [] { return false; }, Lit::orange, 11.5f);
+    button({CL, 440, CW, 32}, "INIT", [this] { initMenu(getScreenBounds().withSize(10, 10), false); }, [] { return false; }, Lit::white, 11.5f);
+    button({CR, 440, CW, 32}, "RANDOM", [this] { initMenu(getScreenBounds().withSize(10, 10), true); }, [] { return false; }, Lit::white, 11.5f);
+    button({CL, 486, FW, 40}, "HOME", [this] { open(M_HOME); }, [this] { return module == M_HOME; }, Lit::white, 15.0f);
+    {
+        auto *ls = apv("low_split");
+        button({CL, 540, FW, 32}, "LOW SPLIT", [=] {
+            bool on = ls->getValue() < 0.5f;
+            setAp(ls, on ? 1.0f : 0.0f);
+            P->splitLearn.store(on);              /* on: the next key you play is the split */
+        }, [ls, P] {
+            if (P->splitLearn.load())             /* blinking while it waits for the key */
+                return (juce::Time::getMillisecondCounter() / 300) % 2 == 0;
+            return ls->getValue() > 0.5f;
+        }, Lit::blue, 12.0f);
+    }
 
     /* MASTER CONTROL: eight encoders, eight buttons, the display's fields */
     for (int i = 0; i < 8; i++) {
@@ -713,6 +736,14 @@ HydratePanel::~HydratePanel()
 
 void Panel::timerCallback()
 {
+    /* LOW SPLIT: the key the processor learned goes into the parameter (saved with the project) */
+    if (int ln = proc.learnedSplit.load(); ln > 0) {
+        auto *q = proc.apvts.getParameter("split_note");
+        q->beginChangeGesture();
+        q->setValueNotifyingHost(q->convertTo0to1((float)ln));
+        q->endChangeGesture();
+        proc.learnedSplit.store(0);
+    }
     /* repaint when anything shown changed */
     double s = (double)module * 7.0 + (double)page * 131.0 + (double)macroSel * 17.0 + (double)filterSel * 3.0 + touched * 0.37;
     int k = 0;
@@ -1149,7 +1180,8 @@ void Panel::paintBackground(juce::Graphics &g, float density)
         g.drawText("WAVE MORPHING SYNTH", Rectangle<float>(88, 72, 170, 16), Justification::centredLeft);
         drawTag(g, Rectangle<float>(96, 98, 120, 24));
     }
-    drawLegend(g, "MASTER\nVOLUME", Rectangle<float>(84, 296, 100, 30), 12.5f);
+    drawLegend(g, "VOICE SPREAD", Rectangle<float>(54, 207, 160, 16), 12.0f);
+    drawLegend(g, "MASTER VOLUME", Rectangle<float>(54, 303, 160, 16), 12.0f);
     drawWell(g, R_SETUP, "SETUP");
     drawLegend(g, "VOICES", Rectangle<float>(44, 368, 180, 18), 11.0f, Justification::centred, col::dim);
     drawLegend(g, "QUALITY", Rectangle<float>(44, 432, 180, 18), 11.0f, Justification::centred, col::dim);
@@ -1192,12 +1224,9 @@ void Panel::paintBackground(juce::Graphics &g, float density)
 
     /* MAIN SYSTEMS */
     drawWell(g, R_MAIN, "MAIN SYSTEMS");
-    g.setColour(col::dim.withAlpha(0.6f));
-    for (float y = 50; y < 590; y += 9)
-        g.drawLine(744 + DX, y, 744 + DX, y + 4, 1.0f);
-    drawLegend(g, "-1", Rectangle<float>(752 + DX, 380, 62, 14), 10.0f, Justification::centred, col::title.withAlpha(0.8f));
-    drawLegend(g, "+1", Rectangle<float>(826 + DX, 380, 62, 14), 10.0f, Justification::centred, col::title.withAlpha(0.8f));
-    drawLegend(g, "PATCH", Rectangle<float>(772 + DX, 176, 100, 14), 10.0f, Justification::centred, col::dim);
+    drawLegend(g, "PATCH", Rectangle<float>(332, 174, 100, 14), 10.0f, Justification::centred, col::dim);
+    drawLegend(g, "-1", Rectangle<float>(282, 369, 94, 13), 10.0f, Justification::centred, col::title.withAlpha(0.8f));
+    drawLegend(g, "+1", Rectangle<float>(388, 369, 94, 13), 10.0f, Justification::centred, col::title.withAlpha(0.8f));
 
     /* MASTER CONTROL */
     drawWell(g, R_MC, "MASTER CONTROL");
@@ -1286,6 +1315,14 @@ void Panel::paintMainDisplay(juce::Graphics &g)
     g.setColour(col::oledDim);
     int prog = proc.getCurrentProgram();
     g.drawText(juce::String(prog + 1).paddedLeft('0', 3) + "  " + proc.patchCategory().toUpperCase(), r.reduced(6, 4).withHeight(14), Justification::centredLeft);
+    if (proc.splitLearn.load()) {
+        g.setColour(col::blueLit);
+        g.drawText("SPLIT: PLAY KEY", r.reduced(6, 4).withHeight(14), Justification::centredRight);
+    } else if (proc.apvts.getRawParameterValue("low_split")->load() > 0.5f) {
+        int sn = (int)proc.apvts.getRawParameterValue("split_note")->load();
+        g.setColour(col::blueLit);
+        g.drawText("SPLIT " + juce::MidiMessage::getMidiNoteName(sn, true, true, 3), r.reduced(6, 4).withHeight(14), Justification::centredRight);
+    }
     /* the wave: the oscillator's when an oscillator page is open, else the output's scope */
     auto wv = Rectangle<float>(r.getX() + 6, r.getY() + 22, r.getWidth() - 12, 62);
     Path p;

@@ -190,6 +190,34 @@ int main()
             Res r = chord(p, 48000, 8, 1.2f);
             CHECK(r.finite && r.peak < 8.0f && r.rms > 1e-4f, "arp mode %d oct %d: rms %.5f", am, om, r.rms);
         }
+    /* LOW SPLIT: a bass voice of its own below the split, the chord above; VOICE SPREAD on top */
+    for (int nv : {8, 16})
+        for (int poly : {(int)PO_POLY, (int)PO_MONO, (int)PO_UNI}) {
+            Engine e;
+            e.prepare(48000);
+            e.setVoices(nv);
+            Patch q;
+            patchInit(q);
+            q.v[P_VO_POLY] = (float)poly;
+            e.setPatch(q);
+            e.setSplit(true, 48);
+            e.setSpread(1.0f);
+            std::vector<float> L(9600), R(9600);
+            e.noteOn(36, 0.8f);
+            e.noteOn(60, 0.8f); e.noteOn(64, 0.8f); e.noteOn(67, 0.8f);
+            e.render(L.data(), R.data(), 9600);
+            int s1 = e.voicesSounding();
+            CHECK(e.voiceLevel(nv - 1) > 0.0f || s1 >= 2, "split %d/%d: bass voice", nv, poly);
+            e.noteOn(40, 0.8f);                     /* legato in the bass: still one bass voice */
+            e.render(L.data(), R.data(), 9600);
+            CHECK(e.voicesSounding() == s1, "split %d/%d: bass stays mono (%d vs %d)", nv, poly, e.voicesSounding(), s1);
+            e.noteOff(40); e.noteOff(36);
+            e.noteOff(60); e.noteOff(64); e.noteOff(67);
+            e.setSplit(false, 48);
+            for (int k = 0; k < 30; k++)
+                e.render(L.data(), R.data(), 9600);
+            CHECK(e.voicesSounding() == 0, "split %d/%d: all quiet after release (%d)", nv, poly, e.voicesSounding());
+        }
     /* random patches: every parameter anywhere in its range */
     srand(1234);
     for (int k = 0; k < 120; k++) {

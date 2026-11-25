@@ -52,6 +52,8 @@ public:
     /* the editor's buttons that act on the engine */
     void tapEnvelope(int e) { tapEnv.store(e); }
     void panicNow() { panicPending.store(true); }
+    std::atomic<bool> splitLearn{false};          /* LOW SPLIT waits for a key */
+    std::atomic<int> learnedSplit{0};             /* that key, until the editor has put it in the parameter */
 
     /* what the engine shows */
     std::atomic<float> voiceLevel[hy::MAXV] = {};

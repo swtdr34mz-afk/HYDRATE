@@ -50,6 +50,11 @@ Eigene Patches (SAVE) landen in `Dokumente\HYDRATE\Patches`.
 - **Effects**: Pre-FX and Post-FX (Chorus, Flanger, Rotary, Phaser, Lo-Fi, Tremolo, EQ, Compressor, Distort, with
   their presets), Delay (Basic Mono / Stereo, Pan, LRC, Reverse), Reverb (Hall, Room, Plate, Cloud; Freeze).
 - **8 or 16 voices** (SETUP), **QUALITY** HIGH (voices at 2x the rate) or ECO.
+- **VOICE SPREAD** (above MASTER VOLUME): spreads the voices across the stereo field, with a little detune
+  (up to ±7 cents) and filter variation per note. Saved with the project, not the patch.
+- **LOW SPLIT** (MAIN SYSTEMS): switch it on and play a key: everything below that key plays one mono bass voice of
+  its own (legato, last note), the keys from there up play the patch as usual (also through the arp). The split note
+  shows in the display. Press again to switch it off.
 
 ## The panel
 

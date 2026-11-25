@@ -34,6 +34,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout HydrateProcessor::createLayo
     layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"quality", 1}, "Quality",
                                                             juce::StringArray{"ECO (1x)", "HIGH (2x)"}, 1));
     layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"host_sync", 1}, "Host Sync", true));
+    layout.add(std::make_unique<juce::AudioParameterBool>(juce::ParameterID{"low_split", 1}, "Low Split", false));
+    layout.add(std::make_unique<juce::AudioParameterInt>(juce::ParameterID{"split_note", 1}, "Split Note", 1, 127, 48,
+        juce::AudioParameterIntAttributes().withStringFromValueFunction([](int v, int) {
+            return juce::MidiMessage::getMidiNoteName(v, true, true, 3);
+        })));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"spread", 1}, "Voice Spread", juce::NormalisableRange<float>(0.0f, 1.0f), 0.0f,
+        juce::AudioParameterFloatAttributes().withStringFromValueFunction([](float v, int) {
+            return juce::String(juce::roundToInt(v * 100.0f)) + " %";
+        })));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"volume", 1}, "Master Volume", juce::NormalisableRange<float>(0.0f, 1.0f), 0.7f,
         juce::AudioParameterFloatAttributes().withStringFromValueFunction([](float v, int) {
@@ -231,8 +241,13 @@ void HydrateProcessor::prepareToPlay(double sampleRate, int)
 
 void HydrateProcessor::handleMidi(const juce::MidiMessage &m)
 {
-    if (m.isNoteOn())
+    if (m.isNoteOn()) {
+        if (splitLearn.exchange(false)) {          /* LOW SPLIT: the first key after switching on sets the split */
+            learnedSplit.store(m.getNoteNumber());
+            engine.setSplit(true, m.getNoteNumber());
+        }
         engine.noteOn(m.getNoteNumber(), m.getFloatVelocity());
+    }
     else if (m.isNoteOff())
         engine.noteOff(m.getNoteNumber(), m.getFloatVelocity());
     else if (m.isPitchWheel())
@@ -301,6 +316,12 @@ void HydrateProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::Midi
         sentVoices = voices;
     }
     engine.setQuality(apvts.getRawParameterValue("quality")->load() > 0.5f ? 1 : 0);
+    {
+        int ln = learnedSplit.load();
+        int sn = ln > 0 ? ln : (int)apvts.getRawParameterValue("split_note")->load();
+        engine.setSplit(apvts.getRawParameterValue("low_split")->load() > 0.5f, sn);
+        engine.setSpread(apvts.getRawParameterValue("spread")->load());
+    }
     if (panicPending.exchange(false))
         engine.panic();
     int te = tapEnv.exchange(-1);

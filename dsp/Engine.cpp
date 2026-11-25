@@ -94,8 +94,62 @@ void Engine::setVoices(int n)
         return;
     for (int i = n; i < MAXV; i++)
         V[i].active = V[i].gate = false;
+    if (splitOn && V[nVoices - 1].active) {
+        V[nVoices - 1].active = V[nVoices - 1].gate = false;
+        bassN = 0;
+    }
     nVoices = n;
     rotNext = 0;
+}
+
+void Engine::setSplit(bool on, int note)
+{
+    splitNote = note < 1 ? 1 : note > 127 ? 127 : note;
+    if (on == splitOn)
+        return;
+    /* the voice that changes hands lets go first */
+    Voice &b = V[bassIdx()];
+    if (b.active && b.gate)
+        releaseVoice(b);
+    bassN = 0;
+    splitOn = on;
+    rotNext = 0;
+}
+void Engine::bassDown(int note, float vel)
+{
+    for (int i = 0; i < bassN; i++)
+        if (bassKeys[i] == note) {
+            for (int j = i; j < bassN - 1; j++) { bassKeys[j] = bassKeys[j + 1]; bassVel[j] = bassVel[j + 1]; }
+            bassN--;
+            break;
+        }
+    if (bassN < NKEYS) { bassKeys[bassN] = (int8_t)note; bassVel[bassN] = vel; bassN++; }
+    Voice &v = V[bassIdx()];
+    bool legato = v.active && v.gate;
+    v.panPos = 0.0f;
+    startVoice(v, note, note, vel, 0.0f, v.active, legato);
+}
+void Engine::bassUp(int note)
+{
+    for (int i = 0; i < bassN; i++)
+        if (bassKeys[i] == note) {
+            for (int j = i; j < bassN - 1; j++) { bassKeys[j] = bassKeys[j + 1]; bassVel[j] = bassVel[j + 1]; }
+            bassN--;
+            break;
+        }
+    Voice &v = V[bassIdx()];
+    if (!(v.active && v.gate))
+        return;
+    if (bassN > 0) {                                /* back to the key still held, legato */
+        int n = bassKeys[bassN - 1];
+        if (v.note != n)
+            startVoice(v, n, n, bassVel[bassN - 1], 0.0f, true, true);
+        return;
+    }
+    if (susOn && (int)pat.v[P_VO_SUSPED] == SP_SUSTAIN)
+        v.sus = true;
+    else
+        releaseVoice(v);
 }
 
 /* ===================================================================== keys === */
@@ -127,6 +181,11 @@ void Engine::noteOn(int note, float vel)
     }
     int q = quantizeNote(note);
     qmap[note] = (int8_t)q;
+    if (splitOn && note < splitNote) {
+        splitHeld[note] = true;
+        bassDown(q, vel);
+        return;
+    }
     if (pat.v[P_AR_ON] > 0.5f) {
         bool latch = pat.v[P_AR_LATCH] > 0.5f;
         /* latched: a new chord (keys pressed after all were let go) replaces the old */
@@ -156,6 +215,11 @@ void Engine::noteOff(int note, float vel)
         return;
     sostHeld[note] = false;
     int q = qmap[note];
+    if (splitHeld[note]) {
+        splitHeld[note] = false;
+        bassUp(q);
+        return;
+    }
     if (pat.v[P_AR_ON] > 0.5f || arpN > 0) {
         bool latch = pat.v[P_AR_LATCH] > 0.5f;
         if (!latch) {
@@ -228,24 +292,25 @@ int Engine::findVoice()
 {
     int mode = (int)pat.v[P_VO_STMODE];
     auto freeV = [&](int i) { return !V[i].active || !V[i].gate; };
+    const int nP = polyN();
     int pick = -1;
     if (mode == SM_ROTATE) {
-        for (int k = 0; k < nVoices; k++) {
-            int i = (rotNext + k) % nVoices;
+        for (int k = 0; k < nP; k++) {
+            int i = (rotNext + k) % nP;
             if (freeV(i)) {
                 pick = i;
                 break;
             }
         }
     } else if (mode == SM_ALTER) {
-        for (int i = 0; i < nVoices; i++)
+        for (int i = 0; i < nP; i++)
             if (freeV(i)) {
                 pick = i;
                 break;
             }
     } else {
         int n = 0, cand[MAXV];
-        for (int i = 0; i < nVoices; i++)
+        for (int i = 0; i < nP; i++)
             if (freeV(i))
                 cand[n++] = i;
         if (n)
@@ -253,13 +318,13 @@ int Engine::findVoice()
     }
     if (pick < 0) {                                 /* all held: the oldest */
         uint32_t best = 0xffffffffu;
-        for (int i = 0; i < nVoices; i++)
+        for (int i = 0; i < nP; i++)
             if (V[i].age < best) {
                 best = V[i].age;
                 pick = i;
             }
     }
-    rotNext = (pick + 1) % nVoices;
+    rotNext = (pick + 1) % nP;
     return pick;
 }
 
@@ -268,13 +333,17 @@ void Engine::playNote(int key, int note, float vel)
     int i = findVoice();
     Voice &v = V[i];
     /* its place in the stereo field: Rotate and Random left to right, Alter from the centre out */
-    int n = nVoices;
+    int n = polyN();
     if ((int)pat.v[P_VO_STMODE] == SM_ALTER)
         v.panPos = (i & 1 ? 1.0f : -1.0f) * ((float)(i / 2) + 0.5f) / ((float)n * 0.5f);
     else
         v.panPos = -1.0f + (2.0f * (float)i + 1.0f) / (float)n;
     bool held = v.active && v.gate;
-    startVoice(v, key, note, vel, 0.0f, v.active, held);
+    /* VOICE SPREAD: up to +-7 cents and a touch of cutoff, different for every note */
+    float sDet = spread > 0.0f ? rndF(rseed) * spread * 0.07f : 0.0f;
+    startVoice(v, key, note, vel, sDet, v.active, held);
+    if (spread > 0.0f)
+        v.cutOff += rndF(rseed) * spread * 3.0f;
 }
 void Engine::stopNote(int key)
 {
@@ -295,12 +364,12 @@ void Engine::monoUpdate()
     int poly = (int)pat.v[P_VO_POLY];
     bool uni = poly >= PO_UNI;
     int pri = uni ? poly - PO_UNI : poly - PO_MONO;       /* 0 last, 1 low, 2 high */
-    int n = uni ? std::min((int)pat.v[P_VO_DENSITY], nVoices) : 1;
+    int n = uni ? std::min((int)pat.v[P_VO_DENSITY], polyN()) : 1;
     n = std::max(n, 1);
     if (nKeys == 0) {
         int pedal = (int)pat.v[P_VO_SUSPED];
         for (int i = 0; i < MAXV; i++)
-            if (V[i].active && V[i].gate) {
+            if (V[i].active && V[i].gate && !(splitOn && i == bassIdx())) {
                 if (susOn && pedal == SP_SUSTAIN)
                     V[i].sus = true;
                 else
@@ -328,7 +397,7 @@ void Engine::monoUpdate()
         startVoice(v, note, note, vel, det, v.active, legato);
     }
     for (int j = n; j < MAXV; j++)
-        if (V[j].active && V[j].gate)
+        if (V[j].active && V[j].gate && !(splitOn && j == bassIdx()))
             releaseVoice(V[j]);
 }
 
@@ -1378,6 +1447,7 @@ void Engine::voiceRender(Voice &v, float *L, float *R)
     /* down to the rate, the amp */
     float ampI = (v.ampT - v.amp) / (float)CH;
     float width = (int)P[P_VO_POLY] >= PO_MONO && (int)P[P_VO_POLY] <= PO_MONOHI ? 0.0f : P[P_VO_WIDTH] / 127.0f;
+    width += (1.0f - width) * spread;              /* VOICE SPREAD opens the field further */
     float pl = minf(1.0f, 1.0f - v.panPos * width), pr = minf(1.0f, 1.0f + v.panPos * width);
     float pk = 0.0f;
     for (int i = 0; i < CH; i++) {
@@ -1676,7 +1746,9 @@ void Engine::allOff()
             releaseVoice(v);
     nKeys = 0;
     arpN = 0;
+    bassN = 0;
     std::memset(sostHeld, 0, sizeof sostHeld);
+    std::memset(splitHeld, 0, sizeof splitHeld);
 }
 void Engine::panic()
 {
@@ -1684,7 +1756,8 @@ void Engine::panic()
         v.active = v.gate = false;
         v.amp = v.ampT = 0.0f;
     }
-    nKeys = arpN = arpNPlaying = 0;
+    nKeys = arpN = arpNPlaying = bassN = 0;
+    std::memset(splitHeld, 0, sizeof splitHeld);
     arpRunning = false;
     std::memset(sostHeld, 0, sizeof sostHeld);
     susOn = false;
