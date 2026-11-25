@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MPL-2.0
  * Copyright (C) 2026 swtdr34mz (HYDRATE) */
-/* The editor: a Hydrasynth's top panel (no keys), drawn at 1960 x 620 and scaled to the window (drag the corner):
+/* The editor: a Hydrasynth's top panel (no keys), drawn at 1524 x 1060 and scaled to the window (drag the corner):
  *   SETUP (HYDRATE's own: VOICES 8 / 16, QUALITY, HOST SYNC, PANIC, the voices' LEDs) under the name and MASTER VOLUME,
  *   ARPEGGIATOR (Tempo, Ratchet, Chance, Gate, Mode, Octave, Division, Swing; ON / EDIT, LATCH, TRIPLET, TAP TEMPO),
  *   MAIN SYSTEMS (the patch encoder, its display, BROWSE, SAVE, INIT, RANDOM, -1 / +1, HOME),
@@ -16,7 +16,7 @@
 class HydratePanel : public juce::Component, private juce::Timer
 {
 public:
-    static constexpr int W = 2100, H = 620;
+    static constexpr int W = 1524, H = 1060;
     explicit HydratePanel(HydrateProcessor &);
     ~HydratePanel() override;
     void paint(juce::Graphics &) override;

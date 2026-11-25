@@ -12,32 +12,36 @@ using Panel = HydratePanel;
 namespace
 {
 /* the panel's places (W x H = 1960 x 620) */
-constexpr float DX = 140;                       /* (everything right of the arp) */
-const juce::Rectangle<float> R_ARP(262, 14, 532, 592), R_MAIN(666 + DX, 14, 240, 592), R_MC(918 + DX, 14, 478, 592),
-    R_FC(1408 + DX, 14, 538, 206), R_MS(1408 + DX, 232, 538, 374), R_SETUP(22, 336, 226, 270), R_DISP(930 + DX, 210, 404, 158),
+constexpr float DX = -404;                      /* (MAIN SYSTEMS and MASTER CONTROL: from their first place) */
+const juce::Rectangle<float> R_ARP(1004, 14, 506, 592), R_MAIN(666 + DX, 14, 240, 592), R_MC(918 + DX, 14, 478, 592),
+    R_FC(14, 620, 486, 426), R_MS(512, 620, 998, 426), R_SETUP(22, 336, 226, 270), R_DISP(930 + DX, 210, 404, 158),
     R_SMALL(746 + DX, 206, 148, 120);
-const float ARPX[4] = {346, 470, 594, 718};
+const float ARPX[4] = {1094, 1208, 1322, 1432};
 const float MCX[4] = {976 + DX, 1078 + DX, 1180 + DX, 1282 + DX};
-const float FCX[5] = {1470 + DX, 1556 + DX, 1642 + DX, 1728 + DX, 1814 + DX};
+const float FCX[5] = {104, 254, 404, 154, 304};
+const float FCY[5] = {738, 738, 738, 906, 906};
+constexpr float FCS = 92;                       /* the filter knobs' size */
 /* module select: the columns and rows of the diagram */
-const float MSC[9] = {1436 + DX, 1494 + DX, 1552 + DX, 1612 + DX, 1672 + DX, 1732 + DX, 1792 + DX, 1852 + DX, 1910 + DX};
-constexpr float MBW = 54, MBH = 36;
+const float MSC[9] = {562, 670, 778, 896, 1010, 1122, 1232, 1344, 1452};
+constexpr float MBW = 80, MBH = 48;
+/* its rows: the envelopes, osc 1, filter 1, the mixer's line, filter 2, osc 3, the LFOs */
+constexpr float Y_ENV = 690, Y_O1 = 760, Y_F1 = 788, Y_MID = 830, Y_F2 = 872, Y_O3 = 900, Y_LFO = 1000;
 struct MsPlace {
     int module;
     float cx, cy;
     const char *text;
 };
 const MsPlace MSP[] = {
-    {Panel::M_OSC1, MSC[0], 352, "OSC\n1"},      {Panel::M_MUT1, MSC[1], 352, "MUTANT\n1"},  {Panel::M_MUT2, MSC[2], 352, "MUTANT\n2"},
-    {Panel::M_OSC2, MSC[0], 412, "OSC\n2"},      {Panel::M_MUT3, MSC[1], 412, "MUTANT\n3"},  {Panel::M_MUT4, MSC[2], 412, "MUTANT\n4"},
-    {Panel::M_OSC3, MSC[0], 472, "OSC\n3"},      {Panel::M_RING, MSC[2], 472, "RING-\nNOISE"}, {Panel::M_MIXER, MSC[3], 412, "MIXER"},
-    {Panel::M_F1, MSC[4], 377, "FILTER\n1"},     {Panel::M_F2, MSC[4], 447, "FILTER\n2"},    {Panel::M_AMP, MSC[5], 412, "AMP"},
-    {Panel::M_PREFX, MSC[6], 412, "PRE-FX"},     {Panel::M_DELAY, MSC[7], 377, "DELAY"},     {Panel::M_REVERB, MSC[7], 447, "REVERB"},
-    {Panel::M_POSTFX, MSC[8], 412, "POST-FX"},
-    {Panel::M_ENV1, MSC[4], 290, "ENV\n1"},      {Panel::M_ENV1 + 1, MSC[5], 290, "ENV\n2"}, {Panel::M_ENV1 + 2, MSC[6], 290, "ENV\n3"},
-    {Panel::M_ENV1 + 3, MSC[7], 290, "ENV\n4"},  {Panel::M_ENV1 + 4, MSC[8], 290, "ENV\n5"},
-    {Panel::M_LFO1, MSC[4], 566, "LFO\n1"},      {Panel::M_LFO1 + 1, MSC[5], 566, "LFO\n2"}, {Panel::M_LFO1 + 2, MSC[6], 566, "LFO\n3"},
-    {Panel::M_LFO1 + 3, MSC[7], 566, "LFO\n4"},  {Panel::M_LFO1 + 4, MSC[8], 566, "LFO\n5"}};
+    {Panel::M_OSC1, MSC[0], Y_O1, "OSC\n1"},      {Panel::M_MUT1, MSC[1], Y_O1, "MUTANT\n1"},  {Panel::M_MUT2, MSC[2], Y_O1, "MUTANT\n2"},
+    {Panel::M_OSC2, MSC[0], Y_MID, "OSC\n2"},      {Panel::M_MUT3, MSC[1], Y_MID, "MUTANT\n3"},  {Panel::M_MUT4, MSC[2], Y_MID, "MUTANT\n4"},
+    {Panel::M_OSC3, MSC[0], Y_O3, "OSC\n3"},      {Panel::M_RING, MSC[2], Y_O3, "RING-\nNOISE"}, {Panel::M_MIXER, MSC[3], Y_MID, "MIXER"},
+    {Panel::M_F1, MSC[4], Y_F1, "FILTER\n1"},     {Panel::M_F2, MSC[4], Y_F2, "FILTER\n2"},    {Panel::M_AMP, MSC[5], Y_MID, "AMP"},
+    {Panel::M_PREFX, MSC[6], Y_MID, "PRE-FX"},     {Panel::M_DELAY, MSC[7], Y_F1, "DELAY"},     {Panel::M_REVERB, MSC[7], Y_F2, "REVERB"},
+    {Panel::M_POSTFX, MSC[8], Y_MID, "POST-FX"},
+    {Panel::M_ENV1, MSC[4], Y_ENV, "ENV\n1"},      {Panel::M_ENV1 + 1, MSC[5], Y_ENV, "ENV\n2"}, {Panel::M_ENV1 + 2, MSC[6], Y_ENV, "ENV\n3"},
+    {Panel::M_ENV1 + 3, MSC[7], Y_ENV, "ENV\n4"},  {Panel::M_ENV1 + 4, MSC[8], Y_ENV, "ENV\n5"},
+    {Panel::M_LFO1, MSC[4], Y_LFO, "LFO\n1"},      {Panel::M_LFO1 + 1, MSC[5], Y_LFO, "LFO\n2"}, {Panel::M_LFO1 + 2, MSC[6], Y_LFO, "LFO\n3"},
+    {Panel::M_LFO1 + 3, MSC[7], Y_LFO, "LFO\n4"},  {Panel::M_LFO1 + 4, MSC[8], Y_LFO, "LFO\n5"}};
 juce::Rectangle<float> msRect(const MsPlace &m) { return {m.cx - MBW / 2, m.cy - MBH / 2, MBW, MBH}; }
 
 bool bipolarKind(const ParamDef &d)
@@ -547,13 +551,13 @@ void Panel::build()
         q->endChangeGesture();
     };
     auto *voices = apv("voices"), *quality = apv("quality"), *hostSync = apv("host_sync");
-    button({44, 392, 82, 32}, "8 VOICES", [=] { setAp(voices, 0.0f); }, [voices] { return voices->getValue() < 0.5f; });
-    button({142, 392, 82, 32}, "16 VOICES", [=] { setAp(voices, 1.0f); }, [voices] { return voices->getValue() >= 0.5f; });
-    button({44, 456, 82, 32}, "ECO", [=] { setAp(quality, 0.0f); }, [quality] { return quality->getValue() < 0.5f; });
-    button({142, 456, 82, 32}, "HIGH", [=] { setAp(quality, 1.0f); }, [quality] { return quality->getValue() >= 0.5f; });
+    button({44, 392, 82, 32}, "8 VOICES", [=] { setAp(voices, 0.0f); }, [voices] { return voices->getValue() < 0.5f; }, Lit::white, 11.5f);
+    button({142, 392, 82, 32}, "16 VOICES", [=] { setAp(voices, 1.0f); }, [voices] { return voices->getValue() >= 0.5f; }, Lit::white, 11.5f);
+    button({44, 456, 82, 32}, "ECO", [=] { setAp(quality, 0.0f); }, [quality] { return quality->getValue() < 0.5f; }, Lit::white, 11.5f);
+    button({142, 456, 82, 32}, "HIGH", [=] { setAp(quality, 1.0f); }, [quality] { return quality->getValue() >= 0.5f; }, Lit::white, 11.5f);
     button({44, 520, 82, 32}, "HOST\nSYNC", [=] { setAp(hostSync, hostSync->getValue() > 0.5f ? 0.0f : 1.0f); },
-           [hostSync] { return hostSync->getValue() > 0.5f; }, Lit::blue);
-    button({142, 520, 82, 32}, "PANIC", [P] { P->panicNow(); }, [] { return false; }, Lit::orange);
+           [hostSync] { return hostSync->getValue() > 0.5f; }, Lit::blue, 11.0f);
+    button({142, 520, 82, 32}, "PANIC", [P] { P->panicNow(); }, [] { return false; }, Lit::orange, 11.5f);
 
     /* ARPEGGIATOR */
     knob(P_AR_TEMPO, ARPX[0], 118, 64, "TEMPO");
@@ -567,7 +571,7 @@ void Panel::build()
     auto tog = [P](int p) { return [P, p] { P->setValue(p, P->value(p) > 0.5f ? 0.0f : 1.0f); }; };
     auto isOn = [P](int p) { return [P, p] { return P->value(p) > 0.5f; }; };
     button({ARPX[0] - 32, 448, 64, 32}, "ON", tog(P_AR_ON), isOn(P_AR_ON), Lit::blue, 12.0f);
-    button({ARPX[0] - 24, 490, 48, 20}, "EDIT", [this] { open(M_ARP); }, [this] { return module == M_ARP; }, Lit::orange, 9.0f);
+    button({ARPX[0] - 24, 490, 48, 20}, "EDIT", [this] { open(M_ARP); }, [this] { return module == M_ARP; }, Lit::orange, 10.5f);
     button({ARPX[1] - 32, 448, 64, 32}, "LATCH", tog(P_AR_LATCH), isOn(P_AR_LATCH), Lit::blue, 12.0f);
     button({ARPX[2] - 32, 448, 64, 32}, "TRIPLET", [P] {
         static const int STRAIGHT[] = {0, 1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11}, TRIP[] = {2, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 10};
@@ -598,10 +602,10 @@ void Panel::build()
     button({678 + DX, 66, 60, 30}, "BROWSE", [this] {
         auto r = getScreenBounds();
         programMenu(r.withSize(10, 10).translated((int)((678 + DX) * getTransform().mat00), (int)(100 * getTransform().mat00)));
-    }, [] { return false; }, Lit::orange, 9.5f);
-    button({678 + DX, 120, 60, 30}, "SAVE", [this] { saveDialog(); }, [] { return false; }, Lit::orange, 9.5f);
-    button({678 + DX, 300, 60, 30}, "INIT", [this] { initMenu(getScreenBounds().withSize(10, 10), false); }, [] { return false; }, Lit::white, 9.5f);
-    button({678 + DX, 354, 60, 30}, "RANDOM", [this] { initMenu(getScreenBounds().withSize(10, 10), true); }, [] { return false; }, Lit::white, 9.0f);
+    }, [] { return false; }, Lit::orange, 11.5f);
+    button({678 + DX, 120, 60, 30}, "SAVE", [this] { saveDialog(); }, [] { return false; }, Lit::orange, 11.5f);
+    button({678 + DX, 300, 60, 30}, "INIT", [this] { initMenu(getScreenBounds().withSize(10, 10), false); }, [] { return false; }, Lit::white, 11.5f);
+    button({678 + DX, 354, 60, 30}, "RANDOM", [this] { initMenu(getScreenBounds().withSize(10, 10), true); }, [] { return false; }, Lit::white, 11.0f);
     button({752 + DX, 346, 62, 32}, juce::String::fromUTF8("\xe2\x97\x80"), [this] { stepProgram(-1); }, [] { return false; }, Lit::white, 13.0f);
     button({826 + DX, 346, 62, 32}, juce::String::fromUTF8("\xe2\x96\xb6"), [this] { stepProgram(1); }, [] { return false; }, Lit::white, 13.0f);
     button({748 + DX, 420, 144, 44}, "HOME", [this] { open(M_HOME); }, [this] { return module == M_HOME; }, Lit::white, 15.0f);
@@ -649,8 +653,8 @@ void Panel::build()
         else
             module = M_HOME;
         repaint();
-    }, [] { return false; }, Lit::white, 9.5f);
-    button({rx, 136, 46, 30}, "VOICE", [this] { open(M_VOICE); }, [this] { return module == M_VOICE; }, Lit::orange, 9.5f);
+    }, [] { return false; }, Lit::white, 11.5f);
+    button({rx, 136, 46, 30}, "VOICE", [this] { open(M_VOICE); }, [this] { return module == M_VOICE; }, Lit::orange, 11.5f);
     button({rx, 222, 46, 38}, juce::String::fromUTF8("\xe2\x96\xb2"), [this] {
         page = (page + pages() - 1) % pages();
         repaint();
@@ -662,13 +666,13 @@ void Panel::build()
     button({rx, 404, 46, 40}, "MACRO\nASSIGN", [this] {
         macroSel = -1;
         open(M_MACRO);
-    }, [this] { return module == M_MACRO; }, Lit::orange, 8.5f);
-    button({rx, 486, 46, 40}, "MOD\nMATRIX", [this] { open(M_MOD); }, [this] { return module == M_MOD; }, Lit::orange, 8.5f);
+    }, [this] { return module == M_MACRO; }, Lit::orange, 10.0f);
+    button({rx, 486, 46, 40}, "MOD\nMATRIX", [this] { open(M_MOD); }, [this] { return module == M_MOD; }, Lit::orange, 10.0f);
 
     /* FILTER CONTROLS: the five knobs on filter 1 or filter 2 */
     for (int k = 0; k < 5; k++) {
         static const char *const L[5] = {"CUTOFF", "RESONANCE", "DRIVE / MORPH", "ENV 1", "LFO 1"};
-        Ctl &c = knob(-1, FCX[k], 104, 64, L[k]);
+        Ctl &c = knob(-1, FCX[k], FCY[k], FCS, L[k]);
         auto pick = [this, k]() -> int {
             static const int F1[5] = {P_F1_CUT, P_F1_RES, P_F1_DRIVE, P_F1_ENV, P_F1_LFO};
             static const int F2[5] = {P_F2_CUT, P_F2_RES, P_F2_MORPH, P_F2_ENV, P_F2_LFO};
@@ -681,13 +685,13 @@ void Panel::build()
         c.defN = k >= 3 ? 0.5f : k == 0 ? 1.0f : 0.0f;
         c.bip = k >= 3;
     }
-    button({1866 + DX, 58, 60, 40}, "FILTER\n1", [this] { filterSel = 0; repaint(); }, [this] { return filterSel == 0; }, Lit::blue, 9.0f);
-    button({1866 + DX, 112, 60, 40}, "FILTER\n2", [this] { filterSel = 1; repaint(); }, [this] { return filterSel == 1; }, Lit::blue, 9.0f);
+    button({408, 864, 72, 44}, "FILTER\n1", [this] { filterSel = 0; repaint(); }, [this] { return filterSel == 0; }, Lit::blue, 12.5f);
+    button({408, 922, 72, 44}, "FILTER\n2", [this] { filterSel = 1; repaint(); }, [this] { return filterSel == 1; }, Lit::blue, 12.5f);
 
     /* MODULE SELECT */
     for (const auto &m : MSP) {
         int mod = m.module;
-        button(msRect(m), m.text, [this, mod] { open((Module)mod); }, [this, mod] { return module == mod; }, Lit::orange, 9.0f);
+        button(msRect(m), m.text, [this, mod] { open((Module)mod); }, [this, mod] { return module == mod; }, Lit::orange, 12.5f);
     }
 }
 
@@ -1210,10 +1214,10 @@ void Panel::paintBackground(juce::Graphics &g, float density)
     drawWell(g, R_FC, "FILTER CONTROLS");
     static const char *const FL[5] = {"CUTOFF", "RESONANCE", "DRIVE / MORPH", "ENV 1", "LFO 1"};
     for (int k = 0; k < 5; k++) {
-        drawLegend(g, FL[k], Rectangle<float>(FCX[k] - 50, 150, 100, 18), 12.5f);
+        drawLegend(g, FL[k], Rectangle<float>(FCX[k] - 70, FCY[k] + FCS / 2 + 10, 140, 20), 15.0f);
         if (k >= 3) {
-            drawLegend(g, "-", Rectangle<float>(FCX[k] - 36, 132, 12, 14), 13.0f);
-            drawLegend(g, "+", Rectangle<float>(FCX[k] + 24, 132, 12, 14), 13.0f);
+            drawLegend(g, "-", Rectangle<float>(FCX[k] - FCS / 2 - 8, FCY[k] + FCS / 2 - 12, 14, 16), 16.0f);
+            drawLegend(g, "+", Rectangle<float>(FCX[k] + FCS / 2 - 6, FCY[k] + FCS / 2 - 12, 14, 16), 16.0f);
         }
     }
 
@@ -1226,45 +1230,46 @@ void Panel::paintBackground(juce::Graphics &g, float density)
         return {};
     };
     g.setColour(col::line.withAlpha(0.85f));
-    auto hl = [&](float x0, float x1, float y) { g.drawLine(x0, y, x1, y, 1.4f); };
-    auto vl = [&](float x, float y0, float y1) { g.drawLine(x, y0, x, y1, 1.4f); };
-    float busX = MSC[2] + MBW / 2 + 14;
-    hl(MSC[0], busX, 352);
-    hl(MSC[0], busX, 412);
-    hl(MSC[2], busX, 472);
-    hl(MSC[0], MSC[0] + 20, 472);
-    vl(MSC[0] + 20, 472, 498);
-    hl(MSC[0] + 20, busX, 498);
-    vl(busX, 352, 498);
-    hl(busX, MSC[3], 412);
-    hl(MSC[3], MSC[4] - MBW / 2 - 10, 412);
-    vl(MSC[4] - MBW / 2 - 10, 377, 447);
-    hl(MSC[4] - MBW / 2 - 10, MSC[4], 377);
-    hl(MSC[4] - MBW / 2 - 10, MSC[4], 447);
-    vl(MSC[4] + MBW / 2 + 8, 377, 447);
-    hl(MSC[4], MSC[4] + MBW / 2 + 8, 377);
-    hl(MSC[4], MSC[4] + MBW / 2 + 8, 447);
-    vl(MSC[4], 377, 447);
-    hl(MSC[4] + MBW / 2 + 8, MSC[6], 412);
-    hl(MSC[6], MSC[7] - MBW / 2 - 8, 412);
-    vl(MSC[7] - MBW / 2 - 8, 377, 412);
-    hl(MSC[7] - MBW / 2 - 8, MSC[7], 377);
-    vl(MSC[7], 377, 447);
-    hl(MSC[7], MSC[7] + MBW / 2 + 6, 447);
-    vl(MSC[7] + MBW / 2 + 6, 412, 447);
-    hl(MSC[7] + MBW / 2 + 6, MSC[8], 412);
+    auto hl = [&](float x0, float x1, float y) { g.drawLine(x0, y, x1, y, 1.8f); };
+    auto vl = [&](float x, float y0, float y1) { g.drawLine(x, y0, x, y1, 1.8f); };
+    float busX = MSC[2] + MBW / 2 + 20;
+    hl(MSC[0], busX, Y_O1);
+    hl(MSC[0], busX, Y_MID);
+    hl(MSC[2], busX, Y_O3);
+    hl(MSC[0], MSC[0] + 30, Y_O3);
+    vl(MSC[0] + 30, Y_O3, Y_O3 + 30);
+    hl(MSC[0] + 30, busX, Y_O3 + 30);
+    vl(busX, Y_O1, Y_O3 + 30);
+    hl(busX, MSC[3], Y_MID);
+    hl(MSC[3], MSC[4] - MBW / 2 - 14, Y_MID);
+    vl(MSC[4] - MBW / 2 - 14, Y_F1, Y_F2);
+    hl(MSC[4] - MBW / 2 - 14, MSC[4], Y_F1);
+    hl(MSC[4] - MBW / 2 - 14, MSC[4], Y_F2);
+    vl(MSC[4] + MBW / 2 + 12, Y_F1, Y_F2);
+    hl(MSC[4], MSC[4] + MBW / 2 + 12, Y_F1);
+    hl(MSC[4], MSC[4] + MBW / 2 + 12, Y_F2);
+    vl(MSC[4], Y_F1, Y_F2);
+    hl(MSC[4] + MBW / 2 + 12, MSC[6], Y_MID);
+    hl(MSC[6], MSC[7] - MBW / 2 - 12, Y_MID);
+    vl(MSC[7] - MBW / 2 - 12, Y_F1, Y_MID);
+    hl(MSC[7] - MBW / 2 - 12, MSC[7], Y_F1);
+    vl(MSC[7], Y_F1, Y_F2);
+    hl(MSC[7], MSC[7] + MBW / 2 + 10, Y_F2);
+    vl(MSC[7] + MBW / 2 + 10, Y_MID, Y_F2);
+    hl(MSC[7] + MBW / 2 + 10, MSC[8], Y_MID);
     /* the envelopes' and LFOs' bars, the dotted pre-wiring (ENV 1 and LFO 1 to the filters, ENV 2 and LFO 2 to the amp) */
     g.setColour(col::title);
-    g.fillRect(Rectangle<float>(MSC[4] - 44, 288, MSC[8] - MSC[4] + 88, 4.0f));
-    g.fillRect(Rectangle<float>(MSC[4] - 44, 564, MSC[8] - MSC[4] + 88, 4.0f));
+    g.fillRect(Rectangle<float>(MSC[4] - 60, Y_ENV - 2.5f, MSC[8] - MSC[4] + 112, 5.0f));
+    g.fillRect(Rectangle<float>(MSC[4] - 60, Y_LFO - 2.5f, MSC[8] - MSC[4] + 112, 5.0f));
     g.setColour(col::line.withAlpha(0.8f));
     float dash[2] = {3.0f, 3.0f};
     auto dl = [&](float x, float y0, float y1) { g.drawDashedLine(Line<float>(x, y0, x, y1), dash, 2, 1.4f); };
-    dl(MSC[4], 290 + MBH / 2, 377 - MBH / 2);
-    dl(MSC[5], 290 + MBH / 2, 412 - MBH / 2);
-    dl(MSC[4], 447 + MBH / 2, 566 - MBH / 2);
-    dl(MSC[5], 412 + MBH / 2, 566 - MBH / 2);
+    dl(MSC[4], Y_ENV + MBH / 2, Y_F1 - MBH / 2);
+    dl(MSC[5], Y_ENV + MBH / 2, Y_MID - MBH / 2);
+    dl(MSC[4], Y_F2 + MBH / 2, Y_LFO - MBH / 2);
+    dl(MSC[5], Y_MID + MBH / 2, Y_LFO - MBH / 2);
     (void)at;
+    drawSurface(g, Rectangle<float>(0, 0, (float)W, (float)H), density);
 }
 
 void Panel::paintMainDisplay(juce::Graphics &g)
@@ -1437,6 +1442,12 @@ void Panel::paint(juce::Graphics &g)
     }
     paintDisplay(g);
     paintMainDisplay(g);
+    /* the displays' glass: a faint reflection of the light */
+    for (auto rr : {R_DISP.expanded(4.0f), R_SMALL.expanded(4.0f)}) {
+        g.setGradientFill(ColourGradient(Colours::white.withAlpha(0.07f), rr.getX(), rr.getY(), Colours::transparentWhite,
+                                         rr.getX() + rr.getWidth() * 0.45f, rr.getY() + rr.getHeight() * 0.6f, false));
+        g.fillRoundedRectangle(rr, 5.0f);
+    }
     /* the voices' LEDs, the arp's step */
     int nv = proc.apvts.getRawParameterValue("voices")->load() > 0.5f ? 16 : 8;
     for (int v = 0; v < 16; v++) {
@@ -1445,7 +1456,7 @@ void Panel::paint(juce::Graphics &g)
     }
     int st = proc.arpStep.load();
     for (int i = 0; i < 16; i++)
-        drawLed(g, {286.0f + (float)i * 22.6f, 588.0f}, 3.2f, st >= 0 && st % 16 == i ? 1.0f : 0.0f, col::orangeLit);
+        drawLed(g, {R_ARP.getX() + 30.0f + (float)i * 29.7f, 588.0f}, 3.2f, st >= 0 && st % 16 == i ? 1.0f : 0.0f, col::orangeLit);
 }
 
 /* =========================================================================== editor === */

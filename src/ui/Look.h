@@ -12,7 +12,7 @@ namespace hyui
 namespace col
 {
 const juce::Colour panel{0xff17171a}, well{0xff111113}, wellEdge{0xff2a2a2e}, title{0xffff6a1c}, legend{0xffe8e8e6},
-    dim{0xff8c8c90}, orangeLit{0xffff8a2a}, orangeDim{0xffb05a1e}, whiteLit{0xfff4f8ff}, blueLit{0xff9fd0ff},
+    dim{0xffa8a8ac}, orangeLit{0xffff8a2a}, orangeDim{0xffb05a1e}, whiteLit{0xfff4f8ff}, blueLit{0xff9fd0ff},
     oledBg{0xff050506}, oled{0xffeef4ff}, oledDim{0xff6c7480}, line{0xffd9d9d9};
 }
 
@@ -36,6 +36,8 @@ public:
 /* the panel's steel and its wells (sections) */
 void drawPanel(juce::Graphics &, juce::Rectangle<float> r, float density);
 void drawWell(juce::Graphics &, juce::Rectangle<float> r, const juce::String &title);
+/* the panel's surface over everything printed: grain, brushing, scratches, dust, the light's fall */
+void drawSurface(juce::Graphics &, juce::Rectangle<float> r, float density);
 /* an aluminium knob (the cap kept as a picture per size): pos 0..1; pointer drawn on it */
 void drawKnobBody(juce::Graphics &, juce::Rectangle<float> r);
 void drawKnobPointer(juce::Graphics &, juce::Rectangle<float> r, float pos);
