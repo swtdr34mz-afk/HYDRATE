@@ -1125,6 +1125,7 @@ void Panel::paintBackground(juce::Graphics &g, float density)
 {
     using namespace juce;
     drawPanel(g, Rectangle<float>(0, 0, (float)W, (float)H), density);
+    drawMetal(g, Rectangle<float>(0, 0, (float)W, (float)H), density);
     /* the name */
     {
         Path drop;

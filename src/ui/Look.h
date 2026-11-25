@@ -36,6 +36,8 @@ public:
 /* the panel's steel and its wells (sections) */
 void drawPanel(juce::Graphics &, juce::Rectangle<float> r, float density);
 void drawWell(juce::Graphics &, juce::Rectangle<float> r, const juce::String &title);
+/* the steel's own surface (its tone, coat and brushing), before the inlays */
+void drawMetal(juce::Graphics &, juce::Rectangle<float> r, float density);
 /* the panel's surface over everything printed: grain, brushing, scratches, dust, the light's fall */
 void drawSurface(juce::Graphics &, juce::Rectangle<float> r, float density);
 /* an aluminium knob (the cap kept as a picture per size): pos 0..1; pointer drawn on it */
