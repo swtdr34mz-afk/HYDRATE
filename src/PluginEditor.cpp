@@ -501,6 +501,7 @@ Panel::Ctl &Panel::knob(int p, float cx, float cy, float size, const juce::Strin
     c.r = {cx - size / 2, cy - size / 2, size, size};
     c.label = label;
     if (p >= 0) {
+        c.hp = proc.param(p);
         Entry e = param(p);
         c.getN = e.getN;
         c.setN = e.setN;
@@ -537,6 +538,7 @@ void Panel::build()
     {
         auto *vol = proc.apvts.getParameter("volume");
         Ctl &c = knob(-1, 134, 268, 66, "MASTER VOLUME");
+        c.hp = vol;
         c.getN = [vol] { return vol->getValue(); };
         c.setN = [vol](float n) { vol->setValueNotifyingHost(juce::jlimit(0.0f, 1.0f, n)); };
         c.begin = [vol] { vol->beginChangeGesture(); };
@@ -547,6 +549,7 @@ void Panel::build()
     {
         auto *sp = proc.apvts.getParameter("spread");
         Ctl &c = knob(-1, 134, 172, 66, "VOICE SPREAD");
+        c.hp = sp;
         c.getN = [sp] { return sp->getValue(); };
         c.setN = [sp](float n) { sp->setValueNotifyingHost(juce::jlimit(0.0f, 1.0f, n)); };
         c.begin = [sp] { sp->beginChangeGesture(); };
@@ -561,12 +564,12 @@ void Panel::build()
         q->endChangeGesture();
     };
     auto *voices = apv("voices"), *quality = apv("quality"), *hostSync = apv("host_sync");
-    button({44, 392, 82, 32}, "8 VOICES", [=] { setAp(voices, 0.0f); }, [voices] { return voices->getValue() < 0.5f; }, Lit::white, 11.5f);
-    button({142, 392, 82, 32}, "16 VOICES", [=] { setAp(voices, 1.0f); }, [voices] { return voices->getValue() >= 0.5f; }, Lit::white, 11.5f);
-    button({44, 456, 82, 32}, "ECO", [=] { setAp(quality, 0.0f); }, [quality] { return quality->getValue() < 0.5f; }, Lit::white, 11.5f);
-    button({142, 456, 82, 32}, "HIGH", [=] { setAp(quality, 1.0f); }, [quality] { return quality->getValue() >= 0.5f; }, Lit::white, 11.5f);
+    button({44, 392, 82, 32}, "8 VOICES", [=] { setAp(voices, 0.0f); }, [voices] { return voices->getValue() < 0.5f; }, Lit::white, 11.5f).hp = voices;
+    button({142, 392, 82, 32}, "16 VOICES", [=] { setAp(voices, 1.0f); }, [voices] { return voices->getValue() >= 0.5f; }, Lit::white, 11.5f).hp = voices;
+    button({44, 456, 82, 32}, "ECO", [=] { setAp(quality, 0.0f); }, [quality] { return quality->getValue() < 0.5f; }, Lit::white, 11.5f).hp = quality;
+    button({142, 456, 82, 32}, "HIGH", [=] { setAp(quality, 1.0f); }, [quality] { return quality->getValue() >= 0.5f; }, Lit::white, 11.5f).hp = quality;
     button({44, 520, 82, 32}, "HOST\nSYNC", [=] { setAp(hostSync, hostSync->getValue() > 0.5f ? 0.0f : 1.0f); },
-           [hostSync] { return hostSync->getValue() > 0.5f; }, Lit::blue, 11.0f);
+           [hostSync] { return hostSync->getValue() > 0.5f; }, Lit::blue, 11.0f).hp = hostSync;
     button({142, 520, 82, 32}, "PANIC", [P] { P->panicNow(); }, [] { return false; }, Lit::orange, 11.5f);
 
     /* ARPEGGIATOR */
@@ -580,15 +583,15 @@ void Panel::build()
     knob(P_AR_SWING, ARPX[3], 330, 60, "SWING");
     auto tog = [P](int p) { return [P, p] { P->setValue(p, P->value(p) > 0.5f ? 0.0f : 1.0f); }; };
     auto isOn = [P](int p) { return [P, p] { return P->value(p) > 0.5f; }; };
-    button({ARPX[0] - 32, 448, 64, 32}, "ON", tog(P_AR_ON), isOn(P_AR_ON), Lit::blue, 12.0f);
+    button({ARPX[0] - 32, 448, 64, 32}, "ON", tog(P_AR_ON), isOn(P_AR_ON), Lit::blue, 12.0f).hp = P->param(P_AR_ON);
     button({ARPX[0] - 24, 490, 48, 20}, "EDIT", [this] { open(M_ARP); }, [this] { return module == M_ARP; }, Lit::orange, 10.5f);
-    button({ARPX[1] - 32, 448, 64, 32}, "LATCH", tog(P_AR_LATCH), isOn(P_AR_LATCH), Lit::blue, 12.0f);
+    button({ARPX[1] - 32, 448, 64, 32}, "LATCH", tog(P_AR_LATCH), isOn(P_AR_LATCH), Lit::blue, 12.0f).hp = P->param(P_AR_LATCH);
     button({ARPX[2] - 32, 448, 64, 32}, "TRIPLET", [P] {
         static const int STRAIGHT[] = {0, 1, 1, 3, 3, 5, 5, 7, 7, 9, 9, 11}, TRIP[] = {2, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 10};
         int d = juce::jlimit(0, NARPDIV - 1, (int)P->value(P_AR_DIV));
         bool trip = d == 2 || d == 4 || d == 6 || d == 8 || d == 10;
         P->setValue(P_AR_DIV, (float)(trip ? STRAIGHT[d] : TRIP[d]));
-    }, [P] { int d = (int)P->value(P_AR_DIV); return d == 2 || d == 4 || d == 6 || d == 8 || d == 10; }, Lit::blue, 12.0f);
+    }, [P] { int d = (int)P->value(P_AR_DIV); return d == 2 || d == 4 || d == 6 || d == 8 || d == 10; }, Lit::blue, 12.0f).hp = P->param(P_AR_DIV);
     button({ARPX[3] - 32, 448, 64, 32}, "TAP\nTEMPO", [this, P] {
         double now = juce::Time::getMillisecondCounterHiRes() * 0.001;
         if (!taps.empty() && now - taps.back() > 2.0)
@@ -630,7 +633,7 @@ void Panel::build()
             if (P->splitLearn.load())             /* blinking while it waits for the key */
                 return (juce::Time::getMillisecondCounter() / 300) % 2 == 0;
             return ls->getValue() > 0.5f;
-        }, Lit::blue, 12.0f);
+        }, Lit::blue, 12.0f).hp = ls;
     }
 
     /* MASTER CONTROL: eight encoders, eight buttons, the display's fields */
@@ -788,8 +791,41 @@ int Panel::ctlAt(juce::Point<float> p) const
     return -1;
 }
 
+/* a control's host parameter: its own, or the parameter of the display field it stands for */
+juce::AudioProcessorParameter *Panel::hostParamFor(const Ctl &c)
+{
+    if (c.hp)
+        return c.hp;
+    if ((c.kind == Ctl::MKNOB || c.kind == Ctl::CELL) && c.index >= 0) {
+        auto es = entries();
+        if ((size_t)c.index < es.size() && es[(size_t)c.index].param >= 0)
+            return proc.param(es[(size_t)c.index].param);
+    }
+    return nullptr;
+}
+
+/* right click: the host's menu for that parameter (MIDI Learn, automation ...); never a change of value */
+bool Panel::hostMenu(const juce::MouseEvent &ev)
+{
+    if (!ev.mods.isPopupMenu())
+        return false;
+    int i = ctlAt(ev.position);
+    if (i >= 0)
+        if (auto *prm = hostParamFor(ctls[(size_t)i]))
+            if (auto *editor = findParentComponentOfClass<juce::AudioProcessorEditor>())
+                if (auto *ctx = editor->getHostContext())
+                    if (auto menu = ctx->getContextMenuForParameter(prm))
+                        menu->showNativeMenu(editor->getMouseXYRelative());
+    return true;
+}
+
 void Panel::mouseDown(const juce::MouseEvent &ev)
 {
+    if (hostMenu(ev)) {
+        active = -1;
+        pressed = false;
+        return;
+    }
     active = ctlAt(ev.position);
     pressed = true;
     dragAcc = 0.0f;
@@ -839,7 +875,7 @@ void Panel::mouseDown(const juce::MouseEvent &ev)
 
 void Panel::mouseDrag(const juce::MouseEvent &ev)
 {
-    if (active < 0)
+    if (active < 0 || ev.mods.isPopupMenu())
         return;
     Ctl &c = ctls[(size_t)active];
     float dy = (float)(ev.getDistanceFromDragStartY());
@@ -860,8 +896,10 @@ void Panel::mouseDrag(const juce::MouseEvent &ev)
     }
 }
 
-void Panel::mouseUp(const juce::MouseEvent &)
+void Panel::mouseUp(const juce::MouseEvent &ev)
 {
+    if (ev.mods.isPopupMenu() && active < 0)
+        return;
     if (active >= 0) {
         Ctl &c = ctls[(size_t)active];
         if (c.kind == Ctl::KNOB && c.end && c.getN)
@@ -879,6 +917,8 @@ void Panel::mouseUp(const juce::MouseEvent &)
 
 void Panel::mouseDoubleClick(const juce::MouseEvent &ev)
 {
+    if (ev.mods.isPopupMenu())
+        return;
     int i = ctlAt(ev.position);
     if (i < 0)
         return;
