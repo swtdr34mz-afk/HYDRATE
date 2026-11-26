@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: MPL-2.0
  * Copyright (C) 2026 swtdr34mz (HYDRATE) */
 /* A picture of the editor (a PNG), without a window: for checking the panel's drawing.
- *   HydrateShot out.png [scale] [patch] [module] [page] */
+ *   HydrateShot out.png [scale] [patch] [module] [page]
+ *   HydrateShot --clicktest      right clicks on controls must change no value; a left click must */
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
@@ -37,6 +38,49 @@ int main(int argc, char **argv)
     }
     std::unique_ptr<juce::AudioProcessorEditor> ed(proc.createEditor());
     ed->setSize(HydratePanel::W, HydratePanel::H);
+    if (out == "--clicktest") {
+        auto *panel = ed->getChildComponent(0);
+        auto values = [&] {
+            std::vector<float> v;
+            for (auto *q : proc.getParameters())
+                v.push_back(q->getValue());
+            return v;
+        };
+        auto src = juce::Desktop::getInstance().getMainMouseSource();
+        auto ev = [&](juce::Point<float> p, juce::ModifierKeys m, int clicks, bool dragged, juce::Point<float> at) {
+            auto now = juce::Time::getCurrentTime();
+            return juce::MouseEvent(src, at, m, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, panel, panel, now, p, now, clicks, dragged);
+        };
+        /* volume, spread, 8/16 voices, ECO, HOST SYNC, arp ON, LOW SPLIT, a master control knob, the arp knobs */
+        std::vector<juce::Point<float>> pts = {{134, 268}, {134, 172}, {85, 408}, {183, 408}, {85, 472}, {85, 536},
+                                               {1094, 464}, {382, 556}, {1094, 118}, {1208, 330}};
+        auto sc = (float)panel->getWidth() / (float)HydratePanel::W;
+        int bad = 0;
+        auto right = juce::ModifierKeys(juce::ModifierKeys::rightButtonModifier);
+        for (auto p : pts) {
+            p *= sc;
+            auto before = values();
+            panel->mouseDown(ev(p, right, 1, false, p));
+            panel->mouseDrag(ev(p, right, 1, true, p.translated(0, -60)));
+            panel->mouseUp(ev(p, right, 1, true, p.translated(0, -60)));
+            panel->mouseDoubleClick(ev(p, right, 2, false, p));
+            if (values() != before) {
+                std::printf("right click at %.0f,%.0f changed a value\n", p.x, p.y);
+                bad++;
+            }
+        }
+        auto before = values();                  /* and a left click on 16 VOICES does change it */
+        juce::Point<float> p(183 * sc, 408 * sc);
+        panel->mouseDown(ev(p, juce::ModifierKeys(juce::ModifierKeys::leftButtonModifier), 1, false, p));
+        panel->mouseUp(ev(p, juce::ModifierKeys(juce::ModifierKeys::leftButtonModifier), 1, false, p));
+        if (values() == before) {
+            std::printf("left click on 16 VOICES changed nothing\n");
+            bad++;
+        }
+        std::printf(bad ? "click test FAILED\n" : "click test passed (%d controls)\n", (int)pts.size());
+        ed.reset();
+        return bad ? 1 : 0;
+    }
     if (argc > 4)
         if (auto *panel = dynamic_cast<HydratePanel *>(ed->getChildComponent(0)))
             panel->open((HydratePanel::Module)std::atoi(argv[4]), argc > 5 ? std::atoi(argv[5]) : 0);

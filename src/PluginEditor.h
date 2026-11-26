@@ -69,8 +69,11 @@ private:
         juce::String label;
         hyui::Lit lit = hyui::Lit::white;
         float textSize = 10.0f;
+        juce::AudioProcessorParameter *hp = nullptr;     /* its host parameter (right click: the host's menu) */
     };
     std::vector<Ctl> ctls;
+    juce::AudioProcessorParameter *hostParamFor(const Ctl &c);
+    bool hostMenu(const juce::MouseEvent &ev);
     int active = -1;
     float dragStart = 0.0f, dragAcc = 0.0f;
     bool pressed = false;
