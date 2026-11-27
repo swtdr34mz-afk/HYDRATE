@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: MPL-2.0
  * Copyright (C) 2026 swtdr34mz (HYDRATE) */
 #include "Presets.h"
+#include "Engine.h"
+#include "Dsp.h"
+#include <memory>
 #include "Fx.h"
 #include "Waves.h"
 #include <cstdio>
@@ -498,4 +501,126 @@ Patch factory(int i)
     const auto &P = all();
     return P[(size_t)(i < 0 ? 0 : i >= (int)P.size() ? (int)P.size() - 1 : i)];
 }
+
+/* ================================================================= RANDOM === */
+static void rollPatch(Patch &p, uint32_t &s)
+{
+    auto r = [&] { return rnd01(s); };
+    auto pick = [&](int n) { return (int)(r() * (float)n) % n; };
+    auto nrm = [&](int q, float n) { p.v[q] = fromNorm(q, n < 0.0f ? 0.0f : n > 1.0f ? 1.0f : n); };
+    patchInit(p);
+    /* oscillators: any wave, musical intervals; 1 and 2 sometimes WaveScan */
+    static const float SEMI[] = {0, 0, 0, 0, -12, 12, 7, -5, 5, -24, 19};
+    for (int o = 0; o < 3; o++) {
+        p.v[pOsc(o, OS_WAVE)] = (float)pick(NWAVE);
+        p.v[pOsc(o, OS_SEMI)] = o == 0 ? 0.0f : SEMI[pick(11)];
+        p.v[pOsc(o, OS_CENT)] = (r() - 0.5f) * 16.0f;
+        if (o < 2 && r() < 0.3f) {
+            p.v[pOsc(o, OS_MODE)] = (float)OM_SCAN;
+            int n = 2 + pick(4);
+            for (int w = 0; w < 8; w++)
+                p.v[pOsc(o, OS_WAV1 + w)] = w < n ? (float)pick(NWAVE) : -1.0f;
+            p.v[pOsc(o, OS_SCAN)] = 1.0f + r() * (float)(n - 1);
+        }
+    }
+    /* mutants: about half of them at work */
+    for (int m = 0; m < 4; m++) {
+        if (r() < 0.5f)
+            continue;
+        p.v[pMut(m, MT_MODE)] = (float)pick(NMUTMODE);
+        nrm(pMut(m, MT_RATIO), r());
+        nrm(pMut(m, MT_DEPTH), r() * 0.6f);
+        nrm(pMut(m, MT_WINDOW), r());
+        nrm(pMut(m, MT_FB), r() * 0.3f);
+        nrm(pMut(m, MT_WET), 0.5f + r() * 0.5f);
+    }
+    /* mixer: oscillator 1 always there */
+    p.v[P_MX_VOL1] = 80.0f + r() * 48.0f;
+    p.v[P_MX_VOL1 + 1] = r() < 0.75f ? 40.0f + r() * 88.0f : 0.0f;
+    p.v[P_MX_VOL1 + 2] = r() < 0.5f ? 30.0f + r() * 90.0f : 0.0f;
+    p.v[P_MX_VOL1 + 3] = r() < 0.25f ? r() * 80.0f : 0.0f;
+    p.v[P_MX_VOL1 + 4] = r() < 0.2f ? r() * 40.0f : 0.0f;
+    p.v[P_RN_NOISE] = (float)pick(NNOISE);
+    for (int k = 0; k < 3; k++)
+        p.v[P_MX_PAN1 + k] = (r() - 0.5f) * 60.0f;
+    /* filter 1: mostly low pass; filter 2 anywhere on its morph */
+    static const int LP[] = {F1_LDR12, F1_LDR24, F1_FAT12, F1_FAT24, F1_GATE, F1_MS20LP, F1_3LER_LP, F1_STN12LP, F1_1POLE, F1_8POLE};
+    p.v[P_F1_TYPE] = r() < 0.85f ? (float)LP[pick(10)] : (float)pick(NF1TYPE);
+    p.v[P_F1_CUT] = 40.0f + r() * 80.0f;
+    p.v[P_F1_RES] = r() * r() * 100.0f;
+    nrm(P_F1_ENV, 0.5f + (r() - 0.3f) * 0.6f);
+    nrm(P_F1_KT, 0.5f + r() * 0.5f);
+    p.v[P_F1_DRIVE] = r() * r() * 60.0f;
+    nrm(P_F2_MORPH, r() * 0.6f);
+    p.v[P_F2_CUT] = 70.0f + r() * 58.0f;
+    p.v[P_F2_RES] = r() * 60.0f;
+    /* envelopes: 1 for the filter, 2 the amp, 3 free for the matrix */
+    for (int e : {0, 1, 2}) {
+        p.v[pEnv(e, EN_DLY)] = 0.0f;
+        p.v[pEnv(e, EN_ATK)] = r() < 0.6f ? r() * 0.05f : r() * r() * 2.5f;
+        p.v[pEnv(e, EN_DEC)] = 0.05f + r() * 2.5f;
+        p.v[pEnv(e, EN_SUS)] = r() * 128.0f;
+        p.v[pEnv(e, EN_REL)] = 0.02f + r() * 2.0f;
+    }
+    if (p.v[pEnv(1, EN_SUS)] < 20.0f && p.v[pEnv(1, EN_DEC)] < 0.3f)
+        p.v[pEnv(1, EN_DEC)] = 0.3f + r();
+    /* three LFOs */
+    for (int l = 0; l < 3; l++) {
+        nrm(pLfo(l, LF_WAVE), r());
+        nrm(pLfo(l, LF_RATE), r() * 0.75f);
+    }
+    /* the matrix: four slots */
+    for (int k = 0; k < 4; k++) {
+        p.v[pMod(k, MM_SRC)] = (float)(SRC_ENV1 + pick(SRC_LFO1U + 5 - SRC_ENV1));
+        p.v[pMod(k, MM_DST)] = (float)(1 + pick((int)dests().size() - 1));
+        p.v[pMod(k, MM_DEPTH)] = (r() - 0.5f) * 80.0f;
+    }
+    /* space */
+    p.v[P_RV_WET] = r() * 45.0f;
+    p.v[P_DL_WET] = r() < 0.5f ? r() * 30.0f : 0.0f;
+    std::snprintf(p.name, NAME_LEN, "Random %04u", (unsigned)(s % 10000u));
+}
+
+Patch randomPatch(uint32_t seed)
+{
+    uint32_t s = seed * 2654435761u + 12345u;
+    Patch best;
+    float bestErr = 1e9f;
+    auto e = std::make_unique<Engine>();
+    std::vector<float> L(9600), R(9600);
+    for (int t = 0; t < 12; t++) {
+        Patch p;
+        rollPatch(p, s);
+        /* a short listen: a chord, 0.4 s held */
+        e->prepare(24000.0);
+        e->setVoices(8);
+        e->setQuality(0);
+        e->setPatch(p);
+        e->noteOn(48, 0.8f); e->noteOn(55, 0.8f); e->noteOn(60, 0.8f);
+        double sum = 0.0;
+        float pk = 0.0f;
+        bool ok = true;
+        e->render(L.data(), R.data(), 9600);
+        for (int i = 2400; i < 9600; i++) {
+            if (!std::isfinite(L[i]) || !std::isfinite(R[i])) { ok = false; break; }
+            sum += (double)L[i] * L[i] + (double)R[i] * R[i];
+            pk = std::max(pk, std::max(std::fabs(L[i]), std::fabs(R[i])));
+        }
+        float rms = (float)std::sqrt(sum / (2.0 * 7200.0));
+        if (!ok || rms < 1e-4f)
+            continue;
+        /* the level: like the factory sounds */
+        float lvl = clampf(p.v[P_AMP_LEVEL] * 0.14f / rms, 20.0f, 128.0f);
+        float got = rms * lvl / p.v[P_AMP_LEVEL];
+        p.v[P_AMP_LEVEL] = std::round(lvl);
+        float err = std::fabs(std::log(got / 0.14f)) + (pk * lvl / 96.0f > 2.0f ? 1.0f : 0.0f);
+        if (err < bestErr) { best = p; bestErr = err; }
+        if (err < 0.7f)
+            break;
+    }
+    if (bestErr >= 1e9f)
+        patchInit(best);
+    return best;
+}
 } // namespace hy
+

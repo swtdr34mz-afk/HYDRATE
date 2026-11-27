@@ -77,6 +77,31 @@ int main(int argc, char **argv)
             std::printf("left click on 16 VOICES changed nothing\n");
             bad++;
         }
+        for (int k = 0; k < 3; k++) {            /* RANDOM: every press a new, audible sound */
+            auto name = proc.patchName();
+            auto vals = values();
+            juce::Point<float> rp(435 * sc, 456 * sc);
+            panel->mouseDown(ev(rp, juce::ModifierKeys(juce::ModifierKeys::leftButtonModifier), 1, false, rp));
+            panel->mouseUp(ev(rp, juce::ModifierKeys(juce::ModifierKeys::leftButtonModifier), 1, false, rp));
+            juce::AudioBuffer<float> buf(2, 512);
+            float pk = 0.0f;
+            for (int b = 0; b < 60; b++) {
+                juce::MidiBuffer m;
+                if (b == 0)
+                    m.addEvent(juce::MidiMessage::noteOn(1, 60, (juce::uint8)100), 0);
+                buf.clear();
+                proc.processBlock(buf, m);
+                pk = juce::jmax(pk, buf.getMagnitude(0, 512));
+            }
+            juce::MidiBuffer off;
+            off.addEvent(juce::MidiMessage::noteOff(1, 60), 0);
+            proc.processBlock(buf, off);
+            std::printf("RANDOM -> %s (peak %.3f)\n", proc.patchName().toRawUTF8(), pk);
+            if (values() == vals || proc.patchName() == name || pk < 0.01f) {
+                std::printf("RANDOM did not give a new audible sound\n");
+                bad++;
+            }
+        }
         std::printf(bad ? "click test FAILED\n" : "click test passed (%d controls)\n", (int)pts.size());
         ed.reset();
         return bad ? 1 : 0;

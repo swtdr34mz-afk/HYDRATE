@@ -1,0 +1,18 @@
+# HYDRATE – changes
+
+The newest first. When the version in CMakeLists.txt goes up and main builds, the release is made by itself with
+the notes of that version from here.
+
+## 1.1.2
+RANDOM button fixed: every press gives a new, playable sound (SHIFT + RANDOM on a module page: only that module).
+INIT, BROWSE and the value menus now open inside the plugin window.
+
+## 1.1.1
+Right click on any control opens your DAW's menu for it (MIDI Learn, automation); a right click never changes a value.
+
+## 1.1.0
+New VOICE SPREAD knob (stereo width, slight detune and filter variation per voice) and LOW SPLIT (play a key to set
+the split: below it a mono bass voice, above it the patch). Main Systems section tidied up.
+
+## 1.0.0
+First release.
