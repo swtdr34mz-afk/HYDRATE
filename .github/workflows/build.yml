@@ -1,5 +1,7 @@
 # Builds HYDRATE for Windows (VST3, Standalone) on every push, after the engine's tests. The zip is under the run's
 # "Artifacts"; a tag v* (or a release published on GitHub) also puts it in its release.
+# Automatic release: when main builds and its version (project(... VERSION x.y.z) in CMakeLists.txt) has no release
+# yet, the release vx.y.z is made right here, with the zip and the notes of that version from CHANGES.md.
 name: build
 on:
   push:
@@ -70,3 +72,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: HYDRATE-Windows.zip
+      - name: automatic release (a new version on main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          v=$(sed -n 's/^project(HYDRATE VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          if [ -z "$v" ]; then echo "no version found"; exit 0; fi
+          if gh release view "v$v" >/dev/null 2>&1; then echo "v$v is out already"; exit 0; fi
+          # the notes: the section '## x.y.z' of CHANGES.md
+          awk -v v="$v" '$0 ~ "^## " { on = ($2 == v) ; next } on' CHANGES.md > notes.md || true
+          [ -s notes.md ] || echo "HYDRATE $v" > notes.md
+          gh release create "v$v" HYDRATE-Windows.zip --target "$GITHUB_SHA" --title "HYDRATE $v" --notes-file notes.md
