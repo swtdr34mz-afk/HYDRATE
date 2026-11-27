@@ -74,6 +74,8 @@ private:
     std::vector<Ctl> ctls;
     juce::AudioProcessorParameter *hostParamFor(const Ctl &c);
     bool hostMenu(const juce::MouseEvent &ev);
+    juce::PopupMenu::Options menuOptions(juce::Rectangle<int> screen);
+    void randomModule();
     int active = -1;
     float dragStart = 0.0f, dragAcc = 0.0f;
     bool pressed = false;

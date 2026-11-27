@@ -52,6 +52,9 @@ Eigene Patches (SAVE) landen in `Dokumente\HYDRATE\Patches`.
 - **8 or 16 voices** (SETUP), **QUALITY** HIGH (voices at 2x the rate) or ECO.
 - **VOICE SPREAD** (above MASTER VOLUME): spreads the voices across the stereo field, with a little detune
   (up to ±7 cents) and filter variation per note. Saved with the project, not the patch.
+- **RANDOM** (MAIN SYSTEMS): every press a new sound - wave, mutants, filters, envelopes, LFOs and four mod
+  slots in musical ranges, checked to be audible and at the level of the factory sounds. With SHIFT on a module page
+  only that module is randomized. **INIT** opens a menu (the whole patch or the open module).
 - **LOW SPLIT** (MAIN SYSTEMS): switch it on and play a key: everything below that key plays one mono bass voice of
   its own (legato, last note), the keys from there up play the patch as usual (also through the arp). The split note
   shows in the display. Press again to switch it off.

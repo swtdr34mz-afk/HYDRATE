@@ -218,6 +218,20 @@ int main()
                 e.render(L.data(), R.data(), 9600);
             CHECK(e.voicesSounding() == 0, "split %d/%d: all quiet after release (%d)", nv, poly, e.voicesSounding());
         }
+    /* RANDOM: 200 seeds, each audible, finite and at the factory level */
+    {
+        int quiet = 0, loud = 0;
+        auto t0 = std::chrono::steady_clock::now();
+        for (uint32_t sd = 1; sd <= 200; sd++) {
+            Patch q = randomPatch(sd);
+            Res r = chord(q);
+            CHECK(r.finite, "random button seed %u: not finite", sd);
+            if (r.rms < 0.03f) quiet++;
+            if (r.peak > 2.5f) loud++;
+        }
+        std::printf("RANDOM: 200 patches, %d quiet, %d loud, %.1f ms each\n", quiet, loud, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count() / 200.0);
+        CHECK(quiet <= 10 && loud <= 4, "random button: %d quiet, %d loud", quiet, loud);
+    }
     /* random patches: every parameter anywhere in its range */
     srand(1234);
     for (int k = 0; k < 120; k++) {

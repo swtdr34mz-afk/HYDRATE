@@ -620,8 +620,20 @@ void Panel::build()
         programMenu(r.withSize(10, 10).translated((int)(282.0f * getTransform().mat00), (int)(430 * getTransform().mat00)));
     }, [] { return false; }, Lit::orange, 11.5f);
     button({CR, 396, CW, 32}, "SAVE", [this] { saveDialog(); }, [] { return false; }, Lit::orange, 11.5f);
-    button({CL, 440, CW, 32}, "INIT", [this] { initMenu(getScreenBounds().withSize(10, 10), false); }, [] { return false; }, Lit::white, 11.5f);
-    button({CR, 440, CW, 32}, "RANDOM", [this] { initMenu(getScreenBounds().withSize(10, 10), true); }, [] { return false; }, Lit::white, 11.5f);
+    button({CL, 440, CW, 32}, "INIT", [this] {
+        auto sc = getTransform().mat00;
+        auto o = getScreenBounds().getTopLeft();
+        initMenu({o.x + (int)(282 * sc), o.y + (int)(472 * sc), (int)(94 * sc), 2}, false);
+    }, [] { return false; }, Lit::white, 11.5f);
+    button({CR, 440, CW, 32}, "RANDOM", [this] {
+        /* one press, one new sound; with SHIFT on a module page: only that module */
+        if (juce::ModifierKeys::currentModifiers.isShiftDown() && module != M_HOME && module != M_MACRO && module != M_MOD) {
+            randomModule();
+            return;
+        }
+        proc.loadPatch(randomPatch(juce::Random::getSystemRandom().nextInt()));
+        repaint();
+    }, [] { return false; }, Lit::white, 11.5f);
     button({CL, 486, FW, 40}, "HOME", [this] { open(M_HOME); }, [this] { return module == M_HOME; }, Lit::white, 15.0f);
     {
         auto *ls = apv("low_split");
@@ -1052,7 +1064,7 @@ void Panel::paramMenu(int p, juce::Rectangle<int> screen)
     }
     if (vals.empty())
         return;
-    auto opts = juce::PopupMenu::Options().withTargetScreenArea(screen).withMaximumNumColumns(4);
+    auto opts = menuOptions(screen).withMaximumNumColumns(4);
     m.showMenuAsync(opts, [set, vals](int r) {
         if (r > 0 && r <= (int)vals.size())
             set(vals[(size_t)(r - 1)]);
@@ -1078,7 +1090,7 @@ void Panel::programMenu(juce::Rectangle<int> screen)
     m.addSeparator();
     m.addItem(10000, "Reload user patches");
     m.addItem(10001, "Open patch folder");
-    m.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(screen), [this](int r) {
+    m.showMenuAsync(menuOptions(screen), [this](int r) {
         if (r == 10000)
             proc.loadUserPatches();
         else if (r == 10001) {
@@ -1142,13 +1154,30 @@ static std::vector<int> moduleParams(int m)
     return v;
 }
 
+/* a menu inside the plugin's window (a separate window can open behind an always-on-top plugin window) */
+juce::PopupMenu::Options Panel::menuOptions(juce::Rectangle<int> screen)
+{
+    auto o = juce::PopupMenu::Options().withTargetScreenArea(screen);
+    if (auto *ed = findParentComponentOfClass<juce::AudioProcessorEditor>())
+        o = o.withParentComponent(ed);
+    return o;
+}
+
+void Panel::randomModule()
+{
+    juce::Random rnd;
+    for (int q : moduleParams(module))
+        proc.setValue(q, fromNorm(q, rnd.nextFloat()));
+    repaint();
+}
+
 void Panel::initMenu(juce::Rectangle<int> screen, bool random)
 {
     juce::PopupMenu m;
     m.addItem(1, random ? "Randomize the patch" : "Init the patch");
     if (module != M_HOME)
         m.addItem(2, (random ? "Randomize " : "Init ") + moduleName(module));
-    m.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(screen), [this, random](int r) {
+    m.showMenuAsync(menuOptions(screen), [this, random](int r) {
         if (r <= 0)
             return;
         juce::Random rnd;
