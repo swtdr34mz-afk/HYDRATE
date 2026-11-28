@@ -15,6 +15,23 @@ int main(int argc, char **argv)
     juce::String out = argc > 1 ? argv[1] : "shot.png";
     float scale = argc > 2 ? (float)std::atof(argv[2]) : 1.0f;
     int prog = argc > 3 ? std::atoi(argv[3]) : 0;
+    if (out == "--sizetest") {               /* the window opens as it was left */
+        HydrateProcessor a;
+        a.uiScale = 0.9f;
+        a.uiScaleSet = true;
+        std::unique_ptr<juce::AudioProcessorEditor> e(a.createEditor());
+        double got = (double)e->getWidth() / HydratePanel::W;
+        std::printf("left at 0.90 -> opens at %.3f (%d x %d)\n", got, e->getWidth(), e->getHeight());
+        e->setSize((int)(HydratePanel::W * 0.7), (int)(HydratePanel::H * 0.7));
+        e.reset();
+        HydrateProcessor b;                       /* a new instance: the last size used */
+        std::unique_ptr<juce::AudioProcessorEditor> e2(b.createEditor());
+        double got2 = (double)e2->getWidth() / HydratePanel::W;
+        std::printf("new instance after 0.70 -> opens at %.3f\n", got2);
+        bool ok = std::fabs(got - 0.9) < 0.01 && std::fabs(got2 - 0.7) < 0.01;
+        std::printf(ok ? "size test passed\n" : "size test FAILED\n");
+        return ok ? 0 : 1;
+    }
     if (out == "--patchtest") {
         int bad = 0;
         HydrateProcessor a;

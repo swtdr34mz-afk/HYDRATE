@@ -3,6 +3,10 @@
 The newest first. When the version in CMakeLists.txt goes up and main builds, the release is made by itself with
 the notes of that version from here.
 
+## 1.1.4
+The window opens as large as you left it - also after closing and reopening the DAW (before, it always came
+back at the smallest size). A new instance starts at the size you used last.
+
 ## 1.1.3
 User patches: SAVE fixed. The save window now opens inside the plugin (before, it could open hidden behind the
 DAW's plugin window, so nothing got saved). If Windows keeps apps out of the Documents folder, patches are saved in

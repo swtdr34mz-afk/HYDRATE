@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MPL-2.0
  * Copyright (C) 2026 swtdr34mz (HYDRATE) */
 #include "PluginEditor.h"
+#include "WindowSize.h"
 #include "Fx.h"
 #include "Waves.h"
 #include <map>
@@ -1612,17 +1613,27 @@ HydrateEditor::HydrateEditor(HydrateProcessor &p) : AudioProcessorEditor(&p), pr
         area = d->userArea;
     double fit = juce::jmin((area.getWidth() - 40) / W, (area.getHeight() - 90) / H);
     fit = juce::jlimit(0.4, 1.6, fit);
+    /* the size it was left at: this project's, else the last one used anywhere (read before the limits below,
+     * which resize the empty window and would otherwise overwrite it with the smallest size) */
+    double s = proc.uiScaleSet ? (double)proc.uiScale.load() : winsize::last("HYDRATE", juce::jmin(fit, 1.0));
     setResizable(true, true);
     setResizeLimits((int)(W * 0.4), (int)(H * 0.4), (int)(W * juce::jmax(0.5, fit)), (int)(H * juce::jmax(0.5, fit)));
     getConstrainer()->setFixedAspectRatio(W / H);
-    double s = proc.uiScaleSet ? (double)proc.uiScale.load() : juce::jmin(fit, 1.0);
     s = juce::jlimit(0.4, fit, s);
+    sized = true;
     setSize((int)std::lround(W * s), (int)std::lround(H * s));
+}
+HydrateEditor::~HydrateEditor()
+{
+    if (proc.uiScaleSet)
+        winsize::remember("HYDRATE", (double)proc.uiScale.load());
 }
 void HydrateEditor::resized()
 {
     float s = (float)getWidth() / (float)HydratePanel::W;
     panel.setTransform(juce::AffineTransform::scale(s));
+    if (!sized)
+        return;
     proc.uiScale = s;
     proc.uiScaleSet = true;
 }
