@@ -1,4 +1,5 @@
-# Builds HYDRATE for Windows (VST3, Standalone) on every push, after the engine's tests. The zip is under the run's
+# Builds HYDRATE for Windows (VST3) and the Mac (VST3, AU, Standalone; Apple Silicon and Intel) on every push, after
+# the engine's tests. The zip is under the run's
 # "Artifacts"; a tag v* (or a release published on GitHub) also puts it in its release.
 # Automatic release: when main builds and its version (project(... VERSION x.y.z) in CMakeLists.txt) has no release
 # yet, the release vx.y.z is made right here, with the zip and the notes of that version from CHANGES.md.
@@ -27,7 +28,15 @@ jobs:
 
   build:
     needs: tests
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows
+          - os: macos-15-intel
+            name: macOS
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
@@ -37,9 +46,10 @@ jobs:
       - name: build
         shell: bash
         run: cmake --build build --config Release --parallel 4
-      - name: pluginval
+      - name: pluginval (Windows)
         # the plugin checked as a host would: loading, its parameters fuzzed, state saved and restored, the editor
         # opened, every buffer size and rate (Tracktion's pluginval, strictness 8)
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Windows.zip -OutFile pluginval.zip
@@ -48,12 +58,13 @@ jobs:
           Get-ChildItem pluginval-log -ErrorAction SilentlyContinue | ForEach-Object { Get-Content $_.FullName | Select-Object -Last 60 }
           if ($p.ExitCode -ne 0) { throw "pluginval failed ($($p.ExitCode))" }
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && runner.os == 'Windows'
         with:
           name: pluginval-log
           path: pluginval-log
           if-no-files-found: ignore
-      - name: package
+      - name: package (Windows)
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $a = "build/Hydrate_artefacts/Release"
@@ -62,16 +73,50 @@ jobs:
           Copy-Item -Recurse "$a/VST3/HYDRATE.vst3" $o/
           Copy-Item README.md $o/
           Compress-Archive -Path $o -DestinationPath HYDRATE-Windows.zip
+      - name: pluginval (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          curl -fsSL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_macOS.zip
+          unzip -q pluginval.zip
+          ./pluginval.app/Contents/MacOS/pluginval --strictness-level 8 --timeout-ms 900000 --validate "build/Hydrate_artefacts/Release/VST3/HYDRATE.vst3"
+      - name: auval (macOS)
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R "build/Hydrate_artefacts/Release/AU/HYDRATE.component" ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar || true
+          auval -v aumu Hydr Swtd
+      - name: package (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          a="build/Hydrate_artefacts/Release"
+          o=HYDRATE-macOS
+          mkdir -p $o
+          cp -R "$a/VST3/HYDRATE.vst3" "$a/AU/HYDRATE.component" "$a/Standalone/HYDRATE.app" $o/
+          for b in $o/*.vst3 $o/*.component $o/*.app; do codesign --force --deep -s - "$b"; done
+          cp README.md $o/
+          lipo -info "$o/HYDRATE.vst3/Contents/MacOS/HYDRATE"
+          ditto -c -k --sequesterRsrc --keepParent $o $o.zip
+          tar -czf $o.tar.gz $o   # (the same as a .tar.gz: some Macs' unzip had lost the plugins' signatures)
       - uses: actions/upload-artifact@v4
         with:
-          name: HYDRATE-Windows
-          path: HYDRATE-Windows.zip
+          name: HYDRATE-${{ matrix.name }}
+          path: |
+            HYDRATE-*.zip
+            HYDRATE-*.tar.gz
       - name: release
         if: startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'release' || github.event_name == 'push')
         uses: softprops/action-gh-release@v2
         with:
-          files: HYDRATE-Windows.zip
+          files: |
+            HYDRATE-*.zip
+            HYDRATE-*.tar.gz
       - name: automatic release (a new version on main)
+        # the Windows and the Mac job each put their downloads in: the first makes the release, the other adds to it
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
         env:
@@ -79,8 +124,15 @@ jobs:
         run: |
           v=$(sed -n 's/^project(HYDRATE VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
           if [ -z "$v" ]; then echo "no version found"; exit 0; fi
-          if gh release view "v$v" >/dev/null 2>&1; then echo "v$v is out already"; exit 0; fi
-          # the notes: the section '## x.y.z' of CHANGES.md
-          awk -v v="$v" '$0 ~ "^## " { on = ($2 == v) ; next } on' CHANGES.md > notes.md || true
-          [ -s notes.md ] || echo "HYDRATE $v" > notes.md
-          gh release create "v$v" HYDRATE-Windows.zip --target "$GITHUB_SHA" --title "HYDRATE $v" --notes-file notes.md
+          files=$(ls HYDRATE-*.zip HYDRATE-*.tar.gz 2>/dev/null)
+          if ! gh release view "v$v" >/dev/null 2>&1; then
+            awk -v v="$v" '$0 ~ "^## " { on = ($2 == v) ; next } on' CHANGES.md > notes.md || true
+            [ -s notes.md ] || echo "HYDRATE $v" > notes.md
+            gh release create "v$v" $files --target "$GITHUB_SHA" --title "HYDRATE $v" --notes-file notes.md && exit 0
+            sleep 10   # (the other job made it just now)
+          fi
+          # already there: add this job's downloads - only to the release of this very commit (a later push
+          # without a new version leaves the released downloads alone)
+          tagsha=$(gh api "repos/${{ github.repository }}/commits/v$v" --jq .sha 2>/dev/null || true)
+          if [ "$tagsha" != "$GITHUB_SHA" ]; then echo "v$v is out already (from $tagsha)"; exit 0; fi
+          gh release upload "v$v" $files --clobber

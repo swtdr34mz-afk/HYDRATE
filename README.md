@@ -1,7 +1,7 @@
 # HYDRATE
 
-A wave-morphing polysynth in the manner of the ASM **Hydrasynth**, as a **VST3** for Windows and a **standalone
-app**. 8 or 16 voices (switchable). By **swtdr34mz**.
+A wave-morphing polysynth in the manner of the ASM **Hydrasynth**, as a **VST3** for Windows and the Mac, an
+**AU** and a **standalone app** for the Mac. 8 or 16 voices (switchable). By **swtdr34mz**.
 
 Unofficial: not made, endorsed or supported by Ashun Sound Machines. The waves, filters, effects, phrases and
 factory patches are HYDRATE's own, built after the Hydrasynth's architecture as its owner's manual (2.2.0)
@@ -12,17 +12,25 @@ describes it.
 ## Download
 
 [Actions](https://github.com/swtdr34mz-afk/HYDRATE/actions) → the newest green run → **Artifacts** at the bottom:
-`HYDRATE-Windows` (a GitHub sign-in is needed for artifacts). Releases (tags `v*`) carry the same zip.
+`HYDRATE-Windows`, `HYDRATE-macOS` (a GitHub sign-in is needed for artifacts). The
+[releases](https://github.com/swtdr34mz-afk/HYDRATE/releases/latest) carry the same files.
 
 ## Installieren (kurz auf Deutsch)
 
+**Windows (Cubase, FL Studio, ...):**
 1. Zip entpacken.
 2. Den Ordner `HYDRATE.vst3` nach `C:\Program Files\Common Files\VST3\` kopieren.
 3. Cubase starten (oder *Studio → VST-PlugIn-Manager → Aktualisieren*). HYDRATE steht unter den Instrumenten,
    Hersteller swtdr34mz.
-4. `HYDRATE.exe` ist die Standalone-App (Audio und MIDI unter *Options*).
 
-Eigene Patches (SAVE) landen in `Dokumente\HYDRATE\Patches`.
+**Mac (Ableton, Logic, ...):** Am besten die `.tar.gz` nehmen. `HYDRATE.vst3` nach `~/Library/Audio/Plug-Ins/VST3/`,
+`HYDRATE.component` nach `~/Library/Audio/Plug-Ins/Components/`. Dann einmal im Terminal:
+```
+xattr -cr ~/Library/Audio/Plug-Ins/VST3/HYDRATE.vst3 ~/Library/Audio/Plug-Ins/Components/HYDRATE.component
+```
+`HYDRATE.app` ist die Standalone-App.
+
+Eigene Patches (SAVE) landen in `Dokumente/HYDRATE/Patches` (wenn Windows den Ordner sperrt: in AppData).
 
 ## What it has
 
