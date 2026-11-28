@@ -7,6 +7,7 @@
  * Values are floats in the units the display shows (Cutoff 0..128, Semi +-36, Attack in seconds ...). The step LFOs'
  * steps (64 each) live in the patch beside the parameters. */
 #pragma once
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
