@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MPL-2.0
  * Copyright (C) 2026 swtdr34mz (HYDRATE) */
 #include "PluginEditor.h"
+#include "PatchFolderIO.h"
 #include "WindowSize.h"
 #include "Fx.h"
 #include "Waves.h"
@@ -1124,13 +1125,15 @@ void Panel::saveDialog()
     w->addTextEditor("name", proc.patchName());
     w->addButton("Save", 1, juce::KeyPress(juce::KeyPress::returnKey));
     w->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+    pfio::addButtons(*w);   /* Folder, Import... */
     addAndMakeVisible(w);
     w->setCentrePosition(W / 2, H / 2);
     juce::Component::SafePointer<Panel> self(this);
     w->enterModalState(true, juce::ModalCallbackFunction::create([self](int r) {
         if (self == nullptr || self->saveWin == nullptr)
             return;
-        if (r == 1) {
+        if (pfio::handle(r, *self, (self->proc.savedTo.existsAsFile() ? self->proc.savedTo.getParentDirectory() : HydrateProcessor::patchFolder()), ".hydrate", "patch", [self] { if (self) { self->proc.rescanUser(); self->repaint(); } })) {
+        } else if (r == 1) {
             auto name = self->saveWin->getTextEditorContents("name").trim();
             int prog = self->proc.writePatch(name);
             if (prog >= 0)

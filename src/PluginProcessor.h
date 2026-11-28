@@ -84,6 +84,19 @@ public:
     static juce::File patchFolder2();
     juce::File savedTo;                          /* where the last SAVE went */
     void loadUserPatches();
+    /* the folder read again (after an import): the sound playing keeps its number */
+    void rescanUser()
+    {
+        auto cur = getProgramName(program);
+        loadUserPatches();
+        if (getProgramName(program) != cur)
+            for (int i = programCount(); --i >= 0;)
+                if (getProgramName(i) == cur) {
+                    program = i;
+                    break;
+                }
+        updateHostDisplay(ChangeDetails().withProgramChanged(true));
+    }
     int writePatch(const juce::String &name);
 
 private:
