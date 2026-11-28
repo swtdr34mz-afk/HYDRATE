@@ -3,6 +3,11 @@
 The newest first. When the version in CMakeLists.txt goes up and main builds, the release is made by itself with
 the notes of that version from here.
 
+## 1.3.1
+New: section zoom. Click a section's name (SETUP, MAIN SYSTEMS, MASTER CONTROL, ARPEGGIATOR, FILTER CONTROLS,
+MODULE SELECT) and that section fills the window, sharp and fully playable - great on small screens and laptops.
+The X, ESC, a click beside it or on its name again brings back the whole panel.
+
 ## 1.3.0
 Sharing sounds made easy: the SAVE window has two new buttons.
 - **Folder** opens the folder with your own patches in Explorer, Finder or the file manager.

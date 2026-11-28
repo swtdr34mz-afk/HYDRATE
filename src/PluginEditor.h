@@ -7,6 +7,8 @@
  *   MASTER CONTROL (eight encoders with LED rings, eight buttons, the display: the module's page; EXIT, VOICE, PAGE,
  *   MACRO ASSIGN, MOD MATRIX), FILTER CONTROLS (Cutoff, Resonance, Drive / Morph, ENV 1, LFO 1; FILTER 1 / 2) and
  *   MODULE SELECT (the signal flow: each module's button opens its pages, as on the instrument).
+ * A click on a section's name (SETUP, MAIN SYSTEMS, MASTER CONTROL, ARPEGGIATOR, FILTER CONTROLS, MODULE SELECT) zooms into it;
+ * the X, ESC, a click beside it or on its name again: the whole panel.
  * With the mouse: drag a knob up and down (Shift: fine), the wheel turns it, a double-click sets it to its default;
  * a click on a display field opens its list (waves, sources, destinations, types). */
 #pragma once
@@ -25,6 +27,17 @@ public:
     void mouseUp(const juce::MouseEvent &) override;
     void mouseDoubleClick(const juce::MouseEvent &) override;
     void mouseWheelMove(const juce::MouseEvent &, const juce::MouseWheelDetails &) override;
+    void mouseMove(const juce::MouseEvent &) override;
+
+    /* the section zoom: a click on a section's name (SETUP, MAIN SYSTEMS, ...) shows that section as large as the
+     * window allows; the editor moves the panel, the panel draws the section sharp at the zoom's size */
+    static int sectionCount();
+    static juce::Rectangle<float> sectionArea(int i);
+    static juce::Rectangle<float> sectionTab(int i);
+    int tabAt(juce::Point<float> p) const;
+    std::function<void(int)> onSection;
+    void setZoom(juce::Rectangle<float> r, float relative);   /* (empty: the whole panel) */
+    bool moving = false;                                 /* (the zoom animating: the pictures only stretched) */
 
     enum Module {
         M_HOME, M_OSC1, M_OSC2, M_OSC3, M_MUT1, M_MUT2, M_MUT3, M_MUT4, M_RING, M_MIXER, M_F1, M_F2, M_AMP, M_PREFX,
@@ -81,6 +94,9 @@ private:
     bool pressed = false;
     juce::Image background;
     float bgScale = 0.0f;
+    juce::Rectangle<float> zoomR;
+    float zoomRel = 1.0f, zoomScale = 0.0f;
+    juce::Image zoomCache;
     double sig = 0.0;
     std::vector<double> taps;
     int encAcc = 0;
@@ -116,11 +132,26 @@ public:
     explicit HydrateEditor(HydrateProcessor &);
     ~HydrateEditor() override;
     void resized() override;
+    bool keyPressed(const juce::KeyPress &) override;
+    void zoomTo(int section);                            /* -1: back to the whole panel */
+    int zoomedSection() const { return zoomed; }
 
 private:
     HydrateProcessor &proc;
     juce::SharedResourcePointer<hyui::UiResources> resources;
     HydratePanel panel;
     bool sized = false;                                  /* (resized() during the constructor keeps nothing) */
+    int zoomed = -1;
+    juce::AffineTransform animFrom, animTo;
+    double animStart = 0.0;
+    juce::AffineTransform panelTransform(int section) const;
+    void animate();
+    struct Shade;
+    std::unique_ptr<juce::Component> shade;
+    struct Anim : juce::Timer {
+        HydrateEditor &ed;
+        explicit Anim(HydrateEditor &e) : ed(e) {}
+        void timerCallback() override { ed.animate(); }
+    } anim{*this};
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HydrateEditor)
 };

@@ -846,8 +846,14 @@ void Panel::mouseDown(const juce::MouseEvent &ev)
     pressed = true;
     dragAcc = 0.0f;
     encAcc = 0;
-    if (active < 0)
+    if (active < 0) {
+        int t = tabAt(ev.position);
+        if (t >= 0 && onSection && !ev.mods.isPopupMenu()) {
+            pressed = false;
+            onSection(t);
+        }
         return;
+    }
     Ctl &c = ctls[(size_t)active];
     switch (c.kind) {
     case Ctl::KNOB:
@@ -952,6 +958,36 @@ void Panel::mouseDoubleClick(const juce::MouseEvent &ev)
             if (e.end) e.end();
         }
     }
+}
+
+/* ------------------------------------------------------------------------ section zoom --- */
+static const juce::Rectangle<float> &secArea(int i)
+{
+    static const juce::Rectangle<float> A[] = {R_SETUP, R_MAIN, R_MC, R_ARP, R_FC, R_MS};
+    return A[juce::jlimit(0, 5, i)];
+}
+int Panel::sectionCount() { return 6; }
+juce::Rectangle<float> Panel::sectionArea(int i) { return secArea(i); }
+juce::Rectangle<float> Panel::sectionTab(int i) { return secArea(i).withHeight(30.0f).reduced(5.0f, 5.0f); }
+int Panel::tabAt(juce::Point<float> p) const
+{
+    for (int i = 0; i < sectionCount(); i++)
+        if (sectionTab(i).expanded(2.0f).contains(p))
+            return i;
+    return -1;
+}
+void Panel::mouseMove(const juce::MouseEvent &ev)
+{
+    setMouseCursor(ctlAt(ev.position) < 0 && tabAt(ev.position) >= 0 ? juce::MouseCursor::PointingHandCursor
+                                                                       : juce::MouseCursor::NormalCursor);
+}
+void Panel::setZoom(juce::Rectangle<float> r, float relative)
+{
+    zoomR = r;
+    zoomRel = r.isEmpty() ? 1.0f : juce::jmax(1.0f, relative);
+    zoomCache = {};
+    zoomScale = 0.0f;
+    repaint();
 }
 
 void Panel::mouseWheelMove(const juce::MouseEvent &ev, const juce::MouseWheelDetails &w)
@@ -1539,15 +1575,29 @@ void Panel::paint(juce::Graphics &g)
 {
     using namespace juce;
     float density = g.getInternalContext().getPhysicalPixelScaleFactor();
-    if (background.isNull() || std::fabs(density - bgScale) > 0.01f) {
-        bgScale = density;
-        background = Image(Image::RGB, jmax(1, (int)std::ceil(W * density)), jmax(1, (int)std::ceil(H * density)), false);
+    /* the whole panel's picture at the window's size (zoomed: at the size without the zoom, the shown section gets a
+     * sharp picture of its own below; the whole panel at the zoom's size would be hundreds of megabytes) */
+    float full = zoomR.isEmpty() ? density : density / zoomRel;
+    if (background.isNull() || (!moving && std::fabs(full - bgScale) > 0.01f)) {
+        bgScale = full;
+        background = Image(Image::RGB, jmax(1, (int)std::ceil(W * full)), jmax(1, (int)std::ceil(H * full)), false);
         Graphics bg(background);
-        bg.addTransform(AffineTransform::scale(density));
-        paintBackground(bg, density);
+        bg.addTransform(AffineTransform::scale(full));
+        paintBackground(bg, full);
     }
     g.setOpacity(1.0f);
     g.drawImage(background, Rectangle<float>(0, 0, (float)W, (float)H), RectanglePlacement::stretchToFit);
+    if (!zoomR.isEmpty() && !moving && density > bgScale * 1.02f) {
+        if (!zoomCache.isValid() || std::fabs(density - zoomScale) > 0.02f) {
+            zoomScale = density;
+            const float zd = jmin(density, 8.0f);
+            zoomCache = Image(Image::RGB, jmax(1, (int)std::ceil(zoomR.getWidth() * zd)), jmax(1, (int)std::ceil(zoomR.getHeight() * zd)), false);
+            Graphics zg(zoomCache);
+            zg.addTransform(AffineTransform::translation(-zoomR.getX(), -zoomR.getY()).scaled(zd));
+            paintBackground(zg, zd);
+        }
+        g.drawImage(zoomCache, zoomR, RectanglePlacement::stretchToFit);
+    }
     auto es = entries();
     for (const auto &c : ctls) {
         switch (c.kind) {
@@ -1606,10 +1656,59 @@ void Panel::paint(juce::Graphics &g)
 }
 
 /* =========================================================================== editor === */
+/* the zoom's veil: the panel around the shown section darkened; a click there, on the X or ESC shows the whole panel
+ * again (as does a second click on the section's name); the section itself plays as ever */
+struct HydrateEditor::Shade : juce::Component {
+    HydrateEditor &ed;
+    juce::Rectangle<float> hole;                         /* (the section, in the editor's coordinates) */
+    explicit Shade(HydrateEditor &e) : ed(e) { setInterceptsMouseClicks(true, false); }
+    juce::Rectangle<float> closeBox() const
+    {
+        float d = juce::jlimit(26.0f, 38.0f, hole.getWidth() * 0.05f);
+        auto b = juce::Rectangle<float>(hole.getRight() - d * 0.6f, hole.getY() - d * 0.4f, d, d);
+        return b.constrainedWithin(getLocalBounds().toFloat().reduced(2.0f));
+    }
+    bool hitTest(int x, int y) override
+    {
+        juce::Point<float> p((float)x, (float)y);
+        return closeBox().contains(p) || !hole.contains(p);
+    }
+    void paint(juce::Graphics &g) override
+    {
+        using namespace juce;
+        Path veil;
+        veil.addRectangle(getLocalBounds().toFloat());
+        veil.addRoundedRectangle(hole.expanded(3.0f), 9.0f);
+        veil.setUsingNonZeroWinding(false);
+        g.setColour(Colours::black.withAlpha(0.74f));
+        g.fillPath(veil);
+        auto c = closeBox();                             /* the X: a round button, lit in HYDRATE's orange */
+        g.setColour(Colours::black.withAlpha(0.55f));
+        g.fillEllipse(c.translated(0.0f, 2.0f));
+        g.setGradientFill(ColourGradient(Colour(0xff3a3c41), c.getX(), c.getY(), Colour(0xff17181a), c.getRight(), c.getBottom(), false));
+        g.fillEllipse(c);
+        g.setColour(Colours::white.withAlpha(0.18f));
+        g.drawEllipse(c.reduced(0.7f), 1.2f);
+        g.setColour(Colour(0xffff7a2e));
+        auto x = c.reduced(c.getWidth() * 0.33f);
+        g.drawLine({x.getTopLeft(), x.getBottomRight()}, 2.4f);
+        g.drawLine({x.getTopRight(), x.getBottomLeft()}, 2.4f);
+    }
+    void mouseDown(const juce::MouseEvent &) override { ed.zoomTo(-1); }
+    void mouseMove(const juce::MouseEvent &e) override
+    {
+        setMouseCursor(closeBox().contains(e.position) ? juce::MouseCursor::PointingHandCursor : juce::MouseCursor::NormalCursor);
+    }
+};
+
 HydrateEditor::HydrateEditor(HydrateProcessor &p) : AudioProcessorEditor(&p), proc(p), panel(p)
 {
     addAndMakeVisible(panel);
     panel.setBounds(0, 0, HydratePanel::W, HydratePanel::H);
+    shade = std::make_unique<Shade>(*this);
+    addChildComponent(*shade);
+    panel.onSection = [this](int i) { zoomTo(i); };
+    setWantsKeyboardFocus(true);
     const double W = HydratePanel::W, H = HydratePanel::H;
     auto area = juce::Rectangle<int>(0, 0, 1920, 1080);
     if (auto *d = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay())
@@ -1628,13 +1727,96 @@ HydrateEditor::HydrateEditor(HydrateProcessor &p) : AudioProcessorEditor(&p), pr
 }
 HydrateEditor::~HydrateEditor()
 {
+    anim.stopTimer();
     if (proc.uiScaleSet)
         winsize::remember("HYDRATE", (double)proc.uiScale.load());
 }
+
+juce::AffineTransform HydrateEditor::panelTransform(int section) const
+{
+    const float s = (float)getWidth() / (float)HydratePanel::W;
+    if (section < 0)
+        return juce::AffineTransform::scale(s);
+    /* the section (and a margin) as large as the window allows, in its middle; at most 3.5 times the panel's size */
+    auto r = HydratePanel::sectionArea(section).expanded(16.0f);
+    float z = juce::jmin((float)getWidth() / r.getWidth(), (float)getHeight() / r.getHeight(), s * 3.5f);
+    float tx = ((float)getWidth() - r.getWidth() * z) * 0.5f - r.getX() * z;
+    float ty = ((float)getHeight() - r.getHeight() * z) * 0.5f - r.getY() * z;
+    /* at the panel's edge: the panel still fills the window (no black beyond it), the section a little off centre */
+    tx = juce::jlimit((float)getWidth() - (float)HydratePanel::W * z, 0.0f, tx);
+    ty = juce::jlimit((float)getHeight() - (float)HydratePanel::H * z, 0.0f, ty);
+    return juce::AffineTransform::scale(z).translated(tx, ty);
+}
+
+void HydrateEditor::zoomTo(int section)
+{
+    if (section == zoomed)
+        section = -1;                                    /* (its name again: back) */
+    zoomed = section;
+    animFrom = panel.getTransform();
+    animTo = panelTransform(section);
+    animStart = juce::Time::getMillisecondCounterHiRes() - (isShowing() ? 0.0 : 1000.0);   /* (not on screen: at once) */
+    panel.moving = true;
+    if (section >= 0) {
+        shade->setVisible(true);
+        shade->toFront(false);
+        grabKeyboardFocus();
+    }
+    anim.startTimerHz(60);
+    animate();
+}
+
+void HydrateEditor::animate()
+{
+    double t = juce::jlimit(0.0, 1.0, (juce::Time::getMillisecondCounterHiRes() - animStart) / 240.0);
+    float e = (float)(1.0 - std::pow(1.0 - t, 3.0));   /* (eases out) */
+    auto lerp = [e](float a, float b) { return a + (b - a) * e; };
+    juce::AffineTransform m(lerp(animFrom.mat00, animTo.mat00), 0.0f, lerp(animFrom.mat02, animTo.mat02),
+                            0.0f, lerp(animFrom.mat11, animTo.mat11), lerp(animFrom.mat12, animTo.mat12));
+    panel.setTransform(m);
+    auto *sh = static_cast<Shade *>(shade.get());
+    if (zoomed >= 0) {
+        sh->hole = HydratePanel::sectionArea(zoomed).transformedBy(m);
+        sh->repaint();
+    }
+    if (t >= 1.0) {
+        anim.stopTimer();
+        panel.moving = false;
+        const float s = (float)getWidth() / (float)HydratePanel::W;
+        if (zoomed >= 0)
+            panel.setZoom(HydratePanel::sectionArea(zoomed), animTo.mat00 / s);
+        else {
+            panel.setZoom({}, 1.0f);
+            sh->setVisible(false);
+        }
+        panel.repaint();
+    }
+}
+
+bool HydrateEditor::keyPressed(const juce::KeyPress &k)
+{
+    if (k == juce::KeyPress::escapeKey && zoomed >= 0) {
+        zoomTo(-1);
+        return true;
+    }
+    return false;
+}
+
 void HydrateEditor::resized()
 {
     float s = (float)getWidth() / (float)HydratePanel::W;
-    panel.setTransform(juce::AffineTransform::scale(s));
+    shade->setBounds(getLocalBounds());
+    if (anim.isTimerRunning()) {                         /* (the window changed mid-animation: straight there) */
+        anim.stopTimer();
+        panel.moving = false;
+    }
+    auto m = panelTransform(zoomed);
+    panel.setTransform(m);
+    if (zoomed >= 0) {
+        panel.setZoom(HydratePanel::sectionArea(zoomed), m.mat00 / s);
+        static_cast<Shade *>(shade.get())->hole = HydratePanel::sectionArea(zoomed).transformedBy(m);
+        shade->repaint();
+    }
     if (!sized)
         return;
     proc.uiScale = s;

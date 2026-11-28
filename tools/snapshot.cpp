@@ -165,6 +165,15 @@ int main(int argc, char **argv)
     if (argc > 4)
         if (auto *panel = dynamic_cast<HydratePanel *>(ed->getChildComponent(0)))
             panel->open((HydratePanel::Module)std::atoi(argv[4]), argc > 5 ? std::atoi(argv[5]) : 0);
+    if (auto *z = std::getenv("HYDRATE_ZOOM"))           /* the section zoom: HYDRATE_ZOOM=<section 0..5> */
+        if (auto *he = dynamic_cast<HydrateEditor *>(ed.get())) {
+            int sec = std::atoi(z);
+            auto tab = HydratePanel::sectionTab(sec).getCentre();
+            auto *panel = dynamic_cast<HydratePanel *>(ed->getChildComponent(0));
+            if (!panel || panel->tabAt(tab) != sec) { std::printf("the section's name does not find it\n"); return 1; }
+            he->zoomTo(sec);
+            std::printf("zoomed to section %d\n", he->zoomedSection());
+        }
     auto img = ed->createComponentSnapshot(ed->getLocalBounds(), true, scale);
     juce::File f = juce::File::getCurrentWorkingDirectory().getChildFile(out);
     f.deleteFile();
