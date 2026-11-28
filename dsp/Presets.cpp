@@ -166,105 +166,180 @@ std::vector<Patch> build()
     auto add = [&](Maker &m) { v.push_back(m.p); };
     /* macro names (MACRO_NAME): 1 Cutoff 2 Reso 8 Wavescan 9 WavStack 10 FM 12 Warp 13 Harmonic 18 Drive 21 Filter
      * 26 Width 33 Chorus 41 Delay 42 Reverb 44 Freeze 56 Wobble 58 Shimmer */
+    /* the first ten: the showcase (the MPC opens with them) - every one with four macros worth turning, velocity,
+     * aftertouch and the mod wheel doing something musical, and its own space */
     {
-        Maker m("Liquid Glass", "Pad");
-        m.scan(0, {"Horizon 2", "Spect A 3", "Glefan 4", "Horizon 6", "Vokz 3"}, 1.0f)
-            .wave(1, "Saw").set(pOsc(1, OS_CENT), 7).mut(0, MU_STACK, 1, 30, 55).mut(2, MU_PWSQZ, 1, 34, 70)
-            .mix(0, 112, -20).mix(1, 84, 20).f1(F1_FAT24, 72, 30, 18, 40)
-            .env(0, 1.4f, 2.5f, 60, 2.2f).env(1, 1.2f, 2.0f, 110, 2.6f)
-            .lfo(2, LW_TRI, 0.11f).mod(SRC_LFO1 + 2, "Osc 1", "WaveScan", 128).lfo(3, LW_SINE, 0.23f)
-            .mod(SRC_LFO1 + 3, "Mutant 3", "Depth", 40).mod(SRC_MODWHL, "Filter 1", "Cutoff", 40)
-            .set(P_VO_WIDTH, 100).set(P_VO_AFEEL, 18).set(P_VO_WARM, 1).fx(0, FX_CHORUS, 1, 40).reverb(RT_HALL, 6.5f, 38, 30)
-            .delay(DT_PAN, 420, 52, 18)
-            .macro(0, 8, {{D("Osc 1", "WaveScan"), 128}}).macro(1, 1, {{D("Filter 1", "Cutoff"), 64}})
-            .macro(2, 9, {{D("Mutant 1", "Depth"), 90}}).macro(3, 42, {{D("Reverb", "Dry/Wet"), 70}});
+        Maker m("Hydra Dawn", "Pad");
+        m.scan(0, {"Horizon 2", "Glefan 4", "Spect A 3", "Horizon 6", "Glefan 2"}, 1.0f)
+            .scan(1, {"Vokz 3", "Horizon 1", "Glefan 6"}, 1.0f).set(pOsc(1, OS_CENT), 7).set(pOsc(1, OS_SEMI), 12)
+            .wave(2, "Sine").set(pOsc(2, OS_SEMI), -12)
+            .mut(0, MU_HARM, 1, 36, 50).mut(2, MU_STACK, 1, 26, 55)
+            .mix(0, 112, -24).mix(1, 70, 24).mix(2, 52).f1(F1_FAT24, 70, 24, 16, 40).set(P_F1_VEL, 20)
+            .set(P_F2_MORPH, 0).set(P_F2_CUT, 118).set(P_F2_RES, 18)
+            .env(0, 1.8f, 3.5f, 64, 3.0f).env(1, 1.6f, 2.0f, 116, 3.4f)
+            .lfo(2, LW_TRI, 0.07f).lfo(3, LW_SINE, 0.13f).lfo(4, LW_RANDOM, 0.21f)
+            .mod(SRC_LFO1 + 2, "Osc 1", "WaveScan", 128).mod(SRC_LFO1 + 3, "Osc 2", "WaveScan", 110)
+            .mod(SRC_LFO1 + 4, "Filter 2", "Morph", 14).mod(SRC_LFO1 + 3, "Mutant 1", "Depth", 22)
+            .mod(SRC_MONOAT, "Filter 1", "Cutoff", 26).mod(SRC_MODWHL, "Voice", "Vib Amt", 40)
+            .set(P_VO_WIDTH, 116).set(P_VO_AFEEL, 20).set(P_VO_WARM, 1).set(P_VO_VIBRATE, 4.8f)
+            .fx(0, FX_CHORUS, 1, 36).reverb(RT_HALL, 6.5f, 40, 34, 40).delay(DT_PAN, 0, 46, 18, 12)
+            .macro(0, 62, {{D("Filter 1", "Cutoff"), 40}, {D("Osc 1", "WaveScan"), 60}, {D("Mutant 1", "Depth"), 40}})
+            .macro(1, 58, {{D("Reverb", "Dry/Wet"), 50}, {D("Reverb", "Time"), 60}, {D("Delay", "Dry/Wet"), 30}})
+            .macro(2, 48, {{D("LFO 3", "Rate"), 80}, {D("LFO 4", "Rate"), 80}, {D("LFO 5", "Rate"), 80}})
+            .macro(3, 13, {{D("Mutant 1", "Depth"), 90}, {D("Mutant 3", "Depth"), 60}});
         add(m);
     }
     {
-        Maker m("Seven Heads", "Lead");
-        m.wave(0, "Saw").wave(1, "Saw").set(pOsc(1, OS_SEMI), 12).mut(0, MU_STACK, 1, 54, 100).mut(2, MU_STACK, 1, 42, 100)
-            .mix(0, 120).mix(1, 70).f1(F1_LDR24, 92, 22, 18, 50).env(0, 0, 0.9f, 40, 0.4f).env(1, 0.005f, 0.4f, 118, 0.45f)
-            .set(P_VO_POLY, PO_MONO).set(P_VO_GLIDE, GL_GLIDE).set(P_VO_GTIME, 30).set(P_VO_GLEGATO, 1)
-            .set(P_VO_VIBAMT, 0.5f).delay(DT_STEREO, 380, 50, 24, 12).reverb(RT_PLATE, 2.2f, 22)
-            .macro(0, 9, {{D("Mutant 1", "Depth"), 70}, {D("Mutant 3", "Depth"), 70}}).macro(1, 1, {{D("Filter 1", "Cutoff"), 50}});
+        Maker m("Glass Cathedral", "Bell");
+        m.wave(0, "Sine").mut(0, MU_FM, 3.5f, 50, 100).mut(1, MU_FM, 1.0f, 12, 100, 18)
+            .wave(1, "Sine").set(pOsc(1, OS_SEMI), 12).set(pOsc(1, OS_CENT), 4).mut(2, MU_FM, 7.0f, 28, 100)
+            .wave(2, "Triangle").set(pOsc(2, OS_SEMI), 19)
+            .mix(0, 112, -16).mix(1, 60, 16).mix(2, 26).f1(F1_1POLE, 118, 0, 0, 60)
+            .env(1, 0.0f, 4.5f, 0, 3.6f).env(2, 0.0f, 1.9f, 8, 2.0f).env(3, 0.0f, 0.5f, 0, 0.5f)
+            .mod(SRC_ENV1 + 2, "Mutant 1", "Depth", 62).mod(SRC_ENV1 + 3, "Mutant 3", "Depth", 52)
+            .mod(SRC_VELON, "Mutant 1", "Depth", 36).mod(SRC_VELON, "Mutant 3", "Depth", 24)
+            .mod(SRC_MONOAT, "Mutant 2", "Depth", 40).mod(SRC_MODWHL, "Voice", "Vib Amt", 30)
+            .set(P_VO_WIDTH, 96).set(P_VO_AFEEL, 10)
+            .reverb(RT_PLATE, 5.5f, 34, 24, 28).delay(DT_PAN, 0, 44, 20, 12)
+            .macro(0, 10, {{D("Mutant 1", "Depth"), 60}, {D("Mutant 3", "Depth"), 40}})
+            .macro(1, 11, {{D("Mutant 1", "Ratio"), 32}, {D("Mutant 3", "Ratio"), -20}})
+            .macro(2, 6, {{D("Env 2", "Decay"), 80}, {D("Env 2", "Release"), 60}})
+            .macro(3, 43, {{D("Reverb", "Dry/Wet"), 60}, {D("Delay", "Dry/Wet"), 40}});
         add(m);
     }
     {
-        Maker m("Glass Clockwork", "Bell");
-        m.wave(0, "Sine").mut(0, MU_FM, 3.5f, 64, 100).wave(1, "Sine").set(pOsc(1, OS_SEMI), 12)
-            .mut(2, MU_FM, 7.0f, 30, 100).mix(0, 110).mix(1, 46).f1(F1_1POLE, 128, 0)
-            .env(1, 0.0f, 3.5f, 0, 2.8f).env(2, 0.0f, 1.6f, 10, 1.6f)
-            .mod(SRC_ENV1 + 2, "Mutant 1", "Depth", 70).mod(SRC_ENV1 + 2, "Mutant 3", "Depth", 50).mod(SRC_VELON, "Mutant 1", "Depth", 30)
-            .reverb(RT_PLATE, 4.0f, 34, 20, 30).delay(DT_PAN, 330, 40, 16)
-            .macro(0, 10, {{D("Mutant 1", "Depth"), 80}}).macro(1, 11, {{D("Mutant 1", "Ratio"), 40}});
+        Maker m("Abyss Bass", "Bass");
+        m.wave(0, "Saw").mut(0, MU_SYNC, 1.5f, 16, 100).wave(1, "Square").set(pOsc(1, OS_CENT), -6).mut(2, MU_PWSQZ, 1, 24, 80)
+            .wave(2, "Sine").set(pOsc(2, OS_SEMI), -12)
+            .mix(0, 112).mix(1, 66).mix(2, 104).f1(F1_LDR24, 38, 34, 48, 30).set(P_F1_DRIVE, 26).set(P_F1_VEL, 34)
+            .env(0, 0.0f, 0.42f, 14, 0.18f).env(1, 0.001f, 0.6f, 118, 0.16f).env(2, 0.0f, 0.22f, 0, 0.2f)
+            .mod(SRC_ENV1 + 2, "Mutant 1", "Depth", 46).mod(SRC_VELON, "Filter 1", "ENV1amt", 20)
+            .mod(SRC_MODWHL, "Mutant 1", "Depth", 70).mod(SRC_MONOAT, "Filter 1", "Cutoff", 24)
+            .set(P_VO_POLY, PO_MONO).set(P_VO_GLIDE, GL_GLIDE).set(P_VO_GTIME, 16).set(P_VO_GLEGATO, 1).set(P_VO_WARM, 1)
+            .fx(1, FX_DISTORT, 0, 16).reverb(RT_ROOM, 0.9f, 8)
+            .macro(0, 57, {{D("Mutant 1", "Depth"), 70}, {D("Filter 1", "Drive"), 60}, {D("Post-FX", "Dry/Wet"), 50}})
+            .macro(1, 1, {{D("Filter 1", "Cutoff"), 60}})
+            .macro(2, 3, {{D("Filter 1", "ENV1amt"), 50}, {D("Env 1", "Decay"), 40}})
+            .macro(3, 63, {{D("Mixer", "Osc3Vol"), -70}, {D("Mixer", "Osc2Vol"), 40}});
         add(m);
     }
     {
-        Maker m("Sync Serpent", "Lead");
-        m.wave(0, "Saw").mut(0, MU_SYNC, 1, 30, 100).mut(1, MU_STACK, 1, 25, 50).wave(1, "Square").set(pOsc(1, OS_SEMI), -12)
-            .mix(0, 120).mix(1, 50).f1(F1_FAT24, 100, 20, 10, 40).env(2, 0.0f, 0.7f, 20, 0.5f).env(1, 0.002f, 0.3f, 120, 0.3f)
-            .mod(SRC_ENV1 + 2, "Mutant 1", "Depth", 90).mod(SRC_MODWHL, "Mutant 1", "Window", 80)
-            .set(P_VO_POLY, PO_MONO).set(P_VO_GLIDE, GL_GLIDE).set(P_VO_GTIME, 26).set(P_VO_VIBAMT, 0.4f)
-            .delay(DT_STEREO, 300, 45, 22, 12).reverb(RT_ROOM, 1.4f, 16)
-            .macro(0, 15, {{D("Mutant 1", "Depth"), 128}}).macro(1, 1, {{D("Filter 1", "Cutoff"), 60}});
+        Maker m("Neon Cascade", "Arp");
+        m.wave(0, "Square").mut(0, MU_PWSQZ, 1, 36, 100).wave(1, "Saw").set(pOsc(1, OS_SEMI), 12).set(pOsc(1, OS_CENT), 5)
+            .mut(2, MU_STACK, 1, 18, 50)
+            .mix(0, 112, -18).mix(1, 64, 18).f1(F1_FAT24, 48, 38, 44, 50).set(P_F1_VEL, 40)
+            .env(0, 0.0f, 0.24f, 6, 0.24f).env(1, 0.0f, 0.42f, 40, 0.34f)
+            .set(P_AR_ON, 1).set(P_AR_LATCH, 1).set(P_AR_MODE, AM_UPANDDN).set(P_AR_DIV, 7).set(P_AR_OCT, 2).set(P_AR_GATE, 54)
+            .lfo(2, LW_TRI, 0.09f).lfo(3, LW_SINE, 0.31f)
+            .mod(SRC_LFO1 + 2, "Filter 1", "Cutoff", 26).mod(SRC_LFO1 + 3, "Mutant 1", "Depth", 30)
+            .mod(SRC_MODWHL, "Filter 1", "Resonance", 40).set(P_VO_WIDTH, 100)
+            .fx(0, FX_PHASER, 0, 22).delay(DT_PAN, 0, 54, 30, 12).reverb(RT_PLATE, 2.4f, 22)
+            .macro(0, 1, {{D("Filter 1", "Cutoff"), 70}})
+            .macro(1, 54, {{D("Arp", "Gate"), 70}, {D("Env 2", "Decay"), 40}})
+            .macro(2, 52, {{D("Arp", "Ratchet"), 128}, {D("Arp", "Chance"), -50}})
+            .macro(3, 41, {{D("Delay", "Dry/Wet"), 50}, {D("Delay", "Feedback"), 30}});
         add(m);
     }
     {
-        Maker m("Velvet Squeeze", "Strings");
-        m.wave(0, "Square").mut(0, MU_PWSQZ, 1, 40, 100).wave(1, "Saw").mut(2, MU_PWORIG, 1, 30, 60).set(pOsc(1, OS_CENT), -9)
-            .mix(0, 104, -30).mix(1, 90, 30).f1(F1_LDR12, 74, 10, 16, 40).env(0, 0.6f, 1.5f, 70, 1.2f)
-            .env(1, 0.45f, 1.0f, 112, 1.4f).lfo(2, LW_TRI, 0.37f).lfo(3, LW_SINE, 0.29f)
-            .mod(SRC_LFO1 + 2, "Mutant 1", "Depth", 50).mod(SRC_LFO1 + 3, "Mutant 3", "Depth", 40)
-            .set(P_VO_WIDTH, 110).set(P_VO_AFEEL, 30).set(P_VO_WARM, 1).fx(0, FX_CHORUS, 0, 46).reverb(RT_HALL, 3.8f, 28)
-            .macro(0, 14, {{D("Mutant 1", "Depth"), 70}, {D("Mutant 3", "Depth"), 70}});
+        Maker m("Silk Orchestra", "Strings");
+        m.wave(0, "Saw").mut(0, MU_PWSQZ, 1, 20, 50).wave(1, "Saw").set(pOsc(1, OS_CENT), -11).mut(2, MU_STACK, 1, 22, 60)
+            .wave(2, "Saw").set(pOsc(2, OS_SEMI), 12).set(pOsc(2, OS_CENT), 6)
+            .mix(0, 104, -34).mix(1, 104, 34).mix(2, 44).f1(F1_LDR12, 66, 12, 18, 50).set(P_F1_VEL, 24)
+            .env(0, 0.9f, 1.8f, 70, 1.4f).env(1, 0.55f, 1.2f, 114, 1.6f)
+            .lfo(2, LW_TRI, 0.33f).lfo(3, LW_SINE, 0.27f).lfo(4, LW_SINE, 5.2f)
+            .set(pLfo(4, LF_DLY), 0.6f).set(pLfo(4, LF_FADE), 0.9f)
+            .mod(SRC_LFO1 + 2, "Mutant 1", "Depth", 30).mod(SRC_LFO1 + 3, "Mutant 3", "Depth", 30)
+            .mod(SRC_LFO1 + 4, "All Osc", "Pitch", 1.0f).mod(SRC_MONOAT, "Filter 1", "Cutoff", 30)
+            .mod(SRC_MODWHL, "All Osc", "Pitch", 0.0f)
+            .set(P_VO_WIDTH, 120).set(P_VO_AFEEL, 32).set(P_VO_WARM, 1)
+            .fx(0, FX_CHORUS, 0, 50).reverb(RT_HALL, 4.4f, 32, 26, 44)
+            .macro(0, 22, {{D("Filter 1", "Cutoff"), 50}, {D("Filter 1", "Keytrack"), 20}})
+            .macro(1, 5, {{D("Env 2", "Attack"), 38}, {D("Env 1", "Attack"), 38}})
+            .macro(2, 24, {{D("Pre-FX", "Dry/Wet"), 50}, {D("Mutant 3", "Depth"), 50}})
+            .macro(3, 43, {{D("Reverb", "Dry/Wet"), 60}, {D("Reverb", "Time"), 50}});
         add(m);
     }
     {
-        Maker m("Harmonic Rain", "Pad");
-        m.wave(0, "Saw").mut(0, MU_HARM, 1, 20, 100).wave(1, "Saw").set(pOsc(1, OS_CENT), 6).mut(2, MU_HARM, 2, 30, 100)
-            .mix(0, 110, -40).mix(1, 110, 40).f1(F1_FAT12, 128, 0).env(1, 1.6f, 2.0f, 110, 3.0f)
-            .lfo(2, LW_RANDOM, 0.5f).lfo(3, LW_TRI, 0.07f).mod(SRC_LFO1 + 2, "Mutant 1", "Depth", 28)
-            .mod(SRC_LFO1 + 3, "Mutant 3", "Depth", 40).mod(SRC_KEY, "Mutant 1", "Depth", -10)
-            .set(P_VO_WIDTH, 127).reverb(RT_CLOUD, 9.0f, 45, 40, 30).delay(DT_PAN, 500, 60, 25)
-            .macro(0, 13, {{D("Mutant 1", "Depth"), 60}, {D("Mutant 3", "Depth"), 60}}).macro(1, 58, {{D("Reverb", "Dry/Wet"), 60}});
+        Maker m("Sync Viper", "Lead");
+        m.wave(0, "Saw").mut(0, MU_SYNC, 1, 24, 100).mut(1, MU_STACK, 1, 20, 40).wave(1, "Saw").set(pOsc(1, OS_CENT), 9)
+            .mix(0, 118).mix(1, 64).f1(F1_FAT24, 96, 18, 12, 50).set(P_F1_DRIVE, 18)
+            .env(0, 0, 0.8f, 40, 0.4f).env(1, 0.004f, 0.4f, 118, 0.42f).env(2, 0.0f, 0.9f, 24, 0.5f)
+            .mod(SRC_ENV1 + 2, "Mutant 1", "Depth", 64).mod(SRC_MODWHL, "Mutant 1", "Depth", 80)
+            .mod(SRC_MONOAT, "Voice", "Vib Amt", 60).mod(SRC_VELON, "Mutant 1", "Depth", 24)
+            .set(P_VO_POLY, PO_UNI).set(P_VO_DENSITY, 4).set(P_VO_DETUNE, 30).set(P_VO_WIDTH, 110)
+            .set(P_VO_GLIDE, GL_GLIDE).set(P_VO_GTIME, 22).set(P_VO_GLEGATO, 1).set(P_VO_VIBRATE, 5.6f)
+            .delay(DT_STEREO, 0, 42, 22, 12).reverb(RT_PLATE, 2.6f, 20)
+            .macro(0, 15, {{D("Mutant 1", "Depth"), 80}})
+            .macro(1, 27, {{D("Voice", "Detune"), 80}})
+            .macro(2, 28, {{D("Voice", "GlidTime"), 70}})
+            .macro(3, 41, {{D("Delay", "Dry/Wet"), 50}, {D("Reverb", "Dry/Wet"), 30}});
         add(m);
     }
     {
-        Maker m("Phase Pluck", "Pluck");
-        m.wave(0, "Saw").mut(0, MU_PHAZ, 1, 40, 100).wave(1, "Triangle").set(pOsc(1, OS_SEMI), 12).mix(0, 118).mix(1, 40)
-            .f1(F1_LDR24, 40, 36, 44, 60).env(0, 0, 0.32f, 0, 0.3f).env(1, 0, 0.7f, 0, 0.5f).env(2, 0, 0.25f, 0, 0.3f)
-            .mod(SRC_ENV1 + 2, "Mutant 1", "Depth", 70).delay(DT_PAN, 375, 46, 26, 12).reverb(RT_PLATE, 1.8f, 20)
-            .macro(0, 1, {{D("Filter 1", "Cutoff"), 60}}).macro(1, 3, {{D("Filter 1", "ENV1amt"), 40}});
+        Maker m("Vox Machina", "Vox");
+        m.scan(0, {"Vokz 1", "Vokz 2", "Vokz 3", "Vokz 4", "Vokz 5", "Vokz 6"}, 1.0f).scan(1, {"Vokz 4", "Vokz 2", "Vokz 6"}, 1.0f)
+            .set(pOsc(1, OS_CENT), 8).mut(0, MU_STACK, 1, 22, 50)
+            .mix(0, 110, -20).mix(1, 84, 20).mix(4, 10).set(P_RN_NOISE, NT_PINK).f1(F1_VOWEL, 72, 28, 0, 30).set(P_F1_CTRL, 64).set(P_F1_DRIVE, 30)
+            .set(P_F2_MORPH, 10).set(P_F2_CUT, 116)
+            .env(1, 0.6f, 1.0f, 112, 2.0f).lfo(2, LW_TRI, 0.16f).lfo(3, LW_SINE, 0.09f).lfo(4, LW_RANDOM, 0.4f)
+            .mod(SRC_LFO1 + 2, "Filter 1", "Control", 40).mod(SRC_LFO1 + 3, "Osc 1", "WaveScan", 128)
+            .mod(SRC_LFO1 + 4, "Osc 2", "WaveScan", 60).mod(SRC_MONOAT, "Filter 1", "Control", 40)
+            .mod(SRC_MODWHL, "Voice", "Vib Amt", 50)
+            .set(P_VO_WIDTH, 110).set(P_VO_AFEEL, 26).set(P_VO_VIBRATE, 5.0f)
+            .fx(0, FX_CHORUS, 1, 38).reverb(RT_HALL, 6.0f, 40, 30, 38).delay(DT_PAN, 0, 40, 14, 12)
+            .macro(0, 20, {{D("Filter 1", "Control"), 128}})
+            .macro(1, 8, {{D("Osc 1", "WaveScan"), 128}, {D("Osc 2", "WaveScan"), 80}})
+            .macro(2, 59, {{D("Mixer", "NoiseVol"), 70}, {D("Filter 1", "Cutoff"), 20}})
+            .macro(3, 43, {{D("Reverb", "Dry/Wet"), 60}});
         add(m);
     }
     {
-        Maker m("Warp Engine", "Lead");
-        m.wave(0, "Sine").mut(0, MU_PWASM, 2, 96, 100, 20).wave(1, "Saw").set(pOsc(1, OS_CENT), -8)
-            .mix(0, 116).mix(1, 50).f1(F1_MS20LP, 90, 50, 20, 40).env(0, 0, 0.6f, 40, 0.3f).env(1, 0.003f, 0.5f, 110, 0.3f)
-            .set(pMut(0, MT_WARP1 + 1), 120).set(pMut(0, MT_WARP1 + 4), 10).set(pMut(0, MT_WARP1 + 6), 110)
-            .lfo(2, LW_TRI, 3.0f).lfo(3, LW_SAWDN, 0.5f).mod(SRC_LFO1 + 2, "Mutant 1", "Warp 2", 50).mod(SRC_LFO1 + 3, "Mutant 1", "Warp 5", 60)
-            .mod(SRC_MODWHL, "Mutant 1", "Ratio", 40).set(P_VO_POLY, PO_MONO).set(P_VO_GLIDE, GL_GLIDE).set(P_VO_GTIME, 20)
-            .delay(DT_STEREO, 250, 40, 20).macro(0, 12, {{D("Mutant 1", "Depth"), -60}}).macro(1, 11, {{D("Mutant 1", "Ratio"), 30}});
+        Maker m("Harmonic Tides", "Texture");
+        m.wave(0, "Saw").mut(0, MU_HARM, 1, 50, 80).wave(1, "Saw").set(pOsc(1, OS_CENT), 6).set(pOsc(1, OS_SEMI), 7)
+            .mut(2, MU_HARM, 2, 56, 80).wave(2, "Glefan 3").set(pOsc(2, OS_SEMI), 12)
+            .mix(0, 104, -46).mix(1, 90, 46).mix(2, 40).f1(F1_FAT12, 112, 10).set(P_F1_DRIVE, 34).set(P_F2_MORPH, 0).set(P_F2_CUT, 104)
+            .set(P_F2_RES, 30).env(1, 2.4f, 2.0f, 112, 4.0f)
+            .lfo(2, LW_RANDOM, 0.35f).lfo(3, LW_TRI, 0.05f).lfo(4, LW_SINE, 0.11f)
+            .mod(SRC_LFO1 + 2, "Mutant 1", "Depth", 26).mod(SRC_LFO1 + 3, "Mutant 3", "Depth", 40)
+            .mod(SRC_LFO1 + 4, "Filter 2", "Cutoff", 22).mod(SRC_KEY, "Mutant 1", "Depth", -10)
+            .mod(SRC_MONOAT, "Filter 2", "Cutoff", 30)
+            .set(P_VO_WIDTH, 127).set(P_VO_AFEEL, 30)
+            .reverb(RT_CLOUD, 12.0f, 46, 50, 34).delay(DT_PAN, 0, 58, 22, 13)
+            .macro(0, 13, {{D("Mutant 1", "Depth"), 60}, {D("Mutant 3", "Depth"), 60}})
+            .macro(1, 50, {{D("LFO 3", "Rate"), 90}, {D("LFO 5", "Rate"), 90}})
+            .macro(2, 44, {{D("Reverb", "Time"), 128}, {D("Reverb", "Dry/Wet"), 40}})
+            .macro(3, 23, {{D("Filter 1", "Cutoff"), -45}});
         add(m);
     }
     {
-        Maker m("Mutant Choir", "Vox");
-        m.scan(0, {"Vokz 1", "Vokz 2", "Vokz 3", "Vokz 4", "Vokz 5"}, 1.0f).wave(1, "Glefan 2").set(pOsc(1, OS_CENT), 8)
-            .mut(0, MU_STACK, 1, 26, 60).mix(0, 112).mix(1, 64).f1(F1_VOWEL, 50, 40).set(P_F1_CTRL, 60)
-            .env(1, 0.7f, 1.0f, 110, 1.8f).lfo(2, LW_TRI, 0.18f).lfo(3, LW_SINE, 0.09f)
-            .mod(SRC_LFO1 + 2, "Filter 1", "Cutoff", 60).mod(SRC_LFO1 + 3, "Osc 1", "WaveScan", 110)
-            .set(P_VO_WIDTH, 100).set(P_VO_AFEEL, 25).fx(0, FX_CHORUS, 1, 35).reverb(RT_HALL, 5.0f, 40, 25)
-            .macro(0, 20, {{D("Filter 1", "Cutoff"), 128}}).macro(1, 8, {{D("Osc 1", "WaveScan"), 128}});
+        Maker m("Brass Monument", "Brass");
+        m.wave(0, "Saw").wave(1, "Saw").set(pOsc(1, OS_CENT), 10).wave(2, "Saw").set(pOsc(2, OS_SEMI), -12).set(pOsc(2, OS_CENT), -5)
+            .mut(0, MU_STACK, 1, 14, 40).mix(0, 108, -20).mix(1, 100, 20).mix(2, 56)
+            .f1(F1_MS20LP, 46, 30, 46, 50).set(P_F1_VEL, 40)
+            .env(0, 0.09f, 0.7f, 62, 0.4f).env(1, 0.06f, 0.6f, 118, 0.5f)
+            .lfo(2, LW_SINE, 5.0f).set(pLfo(2, LF_DLY), 0.4f).set(pLfo(2, LF_FADE), 0.6f)
+            .mod(SRC_LFO1 + 2, "All Osc", "Pitch", 0.6f).mod(SRC_MONOAT, "Filter 1", "Cutoff", 30)
+            .mod(SRC_MODWHL, "Filter 1", "Cutoff", 30).set(P_VO_AFEEL, 24).set(P_VO_WIDTH, 80).set(P_VO_WARM, 1)
+            .fx(0, FX_CHORUS, 2, 22).reverb(RT_HALL, 2.8f, 24, 20, 42)
+            .macro(0, 60, {{D("Filter 1", "ENV1amt"), 50}, {D("Env 1", "Attack"), -40}})
+            .macro(1, 5, {{D("Env 2", "Attack"), 50}, {D("Env 1", "Attack"), 50}})
+            .macro(2, 22, {{D("Filter 1", "Cutoff"), 50}})
+            .macro(3, 43, {{D("Reverb", "Dry/Wet"), 60}});
         add(m);
     }
     {
-        Maker m("Hydra Run", "Arp");
-        m.wave(0, "Saw").mut(0, MU_PWORIG, 2, 30, 60).wave(1, "Square").set(pOsc(1, OS_SEMI), 12).mix(0, 110).mix(1, 50)
-            .f1(F1_FAT24, 52, 40, 36, 50).env(0, 0, 0.22f, 10, 0.2f).env(1, 0, 0.35f, 30, 0.25f)
-            .set(P_AR_ON, 1).set(P_AR_MODE, AM_UPANDDN).set(P_AR_DIV, 7).set(P_AR_OCT, 2).set(P_AR_GATE, 60)
-            .set(P_AR_LATCH, 1).lfo(2, LW_TRI, 0.12f).mod(SRC_LFO1 + 2, "Filter 1", "Cutoff", 30)
-            .delay(DT_PAN, 375, 52, 30, 12).reverb(RT_ROOM, 1.6f, 18)
-            .macro(0, 1, {{D("Filter 1", "Cutoff"), 70}}).macro(1, 53, {{D("Arp", "Chance"), 100}, {D("Arp", "Ratchet"), 128}});
+        Maker m("Phase Keys", "Keys");
+        m.wave(0, "Sine").mut(0, MU_PHAZ, 2, 30, 100).wave(1, "Triangle").set(pOsc(1, OS_SEMI), 12).mut(2, MU_FM, 14, 10, 100)
+            .mix(0, 112).mix(1, 46).f1(F1_LDR12, 92, 8, 24, 60).set(P_F1_VEL, 40)
+            .env(0, 0, 1.6f, 20, 0.6f).env(1, 0.0f, 3.2f, 20, 0.7f).env(2, 0, 0.5f, 6, 0.6f).env(3, 0, 0.08f, 0, 0.1f)
+            .mod(SRC_ENV1 + 2, "Mutant 1", "Depth", 50).mod(SRC_ENV1 + 3, "Mutant 3", "Depth", 50)
+            .mod(SRC_VELON, "Mutant 1", "Depth", 40).mod(SRC_MODWHL, "Post-FX", "Dry/Wet", 60)
+            .set(P_VO_WIDTH, 90).set(P_VO_AFEEL, 12)
+            .fx(0, FX_CHORUS, 0, 24).fx(1, FX_TREMOLO, 0, 30).reverb(RT_ROOM, 1.6f, 18).delay(DT_PAN, 0, 34, 12, 12)
+            .macro(0, 22, {{D("Mutant 1", "Depth"), 50}, {D("Filter 1", "Cutoff"), 30}})
+            .macro(1, 37, {{D("Post-FX", "Dry/Wet"), 70}})
+            .macro(2, 6, {{D("Env 2", "Decay"), 70}, {D("Env 2", "Sustain"), 50}})
+            .macro(3, 43, {{D("Reverb", "Dry/Wet"), 50}, {D("Delay", "Dry/Wet"), 40}});
         add(m);
     }
     {
@@ -443,16 +518,16 @@ std::vector<Patch> build()
        Amp Level takes the first part; if it would need more than full scale,
        the mixer levels make up the rest. */
     static const struct { const char *n; float g; } T[] = {
-        {"Liquid Glass", 0.95f},
-        {"Seven Heads", 1.51f},
-        {"Glass Clockwork", 0.59f},
-        {"Sync Serpent", 1.05f},
-        {"Velvet Squeeze", 0.62f},
-        {"Harmonic Rain", 1.29f},
-        {"Phase Pluck", 1.43f},
-        {"Warp Engine", 0.82f},
-        {"Mutant Choir", 4.00f},
-        {"Hydra Run", 0.98f},
+        {"Hydra Dawn", 1.23f},
+        {"Glass Cathedral", 0.72f},
+        {"Abyss Bass", 0.66f},
+        {"Neon Cascade", 0.74f},
+        {"Silk Orchestra", 1.21f},
+        {"Sync Viper", 0.40f},
+        {"Vox Machina", 0.94f},
+        {"Harmonic Tides", 0.59f},
+        {"Brass Monument", 0.86f},
+        {"Phase Keys", 0.91f},
         {"Phrase Machine", 3.33f},
         {"Step Garden", 1.20f},
         {"Deep Water", 0.73f},

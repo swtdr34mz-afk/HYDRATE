@@ -3,6 +3,12 @@
 The newest first. When the version in CMakeLists.txt goes up and main builds, the release is made by itself with
 the notes of that version from here.
 
+## 1.2.1
+Ten new showcase sounds at the top of the list: Hydra Dawn, Glass Cathedral, Abyss Bass, Neon Cascade, Silk Orchestra,
+Sync Viper, Vox Machina, Harmonic Tides, Brass Monument and Phase Keys. Each one has four macros, plays with mod wheel,
+aftertouch and velocity, and has its own effects. All of them play at the same loudness.
+MPC: at the start you now hear the sound whose name is shown (before, it said Liquid Glass but played INIT).
+
 ## 1.2.0
 New: HYDRATE for the MPC (MPC XL, Live III and the 32-bit MPCs, OS 3.10.1 or newer). The same engine as the plugin,
 six touch pages in the HYDRATE look (OSC, MUTANT, FILTER, ENV, MOD, FX/ARP) with the Q-Links on every page, the 31

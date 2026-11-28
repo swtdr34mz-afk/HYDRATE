@@ -31,12 +31,12 @@ public:
     HydrateMpc() : mpc::Plugin(makeInfo())
     {
         addParam(mpc::floatParam("vol", "Volume", 0.0f, 1.0f, 0.7f, "", 2));
-        Patch init;
-        patchInit(init);
+        /* the start values are those of program 1, so the display and the sound agree */
+        const Patch start = factory(0);
         for (int p = 0; p < NPARAM; p++) {
             const ParamDef &d = pdef(p);
             const std::string nm = mpcName(p);
-            float def = toPlain(p, init.v[p]);
+            float def = toPlain(p, start.v[p]);
             switch (typeOf(p)) {
             case CHOICE: {
                 std::vector<std::string> ch;
