@@ -13,7 +13,7 @@ if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-project(HYDRATE VERSION 1.1.4 LANGUAGES C CXX)
+project(HYDRATE VERSION 1.1.5 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -37,10 +37,14 @@ if(HYDRATE_PLUGIN)
     if(APPLE)
         list(APPEND HYDRATE_FORMATS AU)
     endif()
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        list(APPEND HYDRATE_FORMATS LV2)
+    endif()
     juce_add_plugin(Hydrate
         PRODUCT_NAME "HYDRATE"
         COMPANY_NAME "swtdr34mz"
         BUNDLE_ID "com.swtdr34mz.hydrate"
+        LV2URI "https://github.com/swtdr34mz-afk/HYDRATE"
         PLUGIN_MANUFACTURER_CODE Swtd
         PLUGIN_CODE Hydr
         FORMATS ${HYDRATE_FORMATS}

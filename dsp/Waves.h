@@ -7,6 +7,7 @@
  * copy whose highest harmonic stays under Nyquist. Built once, on first use (~18 MB). */
 #pragma once
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 
 namespace hy

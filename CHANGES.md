@@ -3,6 +3,9 @@
 The newest first. When the version in CMakeLists.txt goes up and main builds, the release is made by itself with
 the notes of that version from here.
 
+## 1.1.5
+New: HYDRATE for Linux - VST3, LV2 and a standalone app (64-bit, built on Ubuntu 22.04). Checked with pluginval like the Windows version.
+
 ## 1.1.4
 The window opens as large as you left it - also after closing and reopening the DAW (before, it always came
 back at the smallest size). A new instance starts at the size you used last.
