@@ -256,15 +256,21 @@ int main(int argc, char **argv)
     std::vector<std::string> seen;
     for (int i = 0; i < p.e->numParams; i++) {
         std::string n = p.str(effGetParamName, i), v = p.str(effGetParamDisplay, i);
-        if (n.empty() || n.size() > 12 || v.size() > 12 || std::find(seen.begin(), seen.end(), n) != seen.end()) {
+        if (n.empty() || n.size() > 12 || v.empty() || v.size() > 31 || std::find(seen.begin(), seen.end(), n) != seen.end()) {
             std::printf("    parameter %d: '%s' = '%s'\n", i, n.c_str(), v.c_str());
             names = false;
         }
         seen.push_back(n);
         p.d(effCanBeAutomated, i);
     }
-    check(names, "every parameter named (unique, 12 characters at most), every value shown");
+    check(names, "every parameter named (unique, 12 characters at most), every value shown (31 at most, as the SDK writes)");
+    /* the sound at the start is program 0 (the display shows its name) */
+    std::vector<float> atStart((size_t)p.e->numParams);
+    for (int i = 0; i < p.e->numParams; i++) atStart[(size_t)i] = p.e->getParameter(p.e, i);
     p.d(effSetProgram, 0, 0);
+    bool startSame = true;
+    for (int i = 0; i < p.e->numParams; i++) startSame &= std::fabs(p.e->getParameter(p.e, i) - atStart[(size_t)i]) < 1e-5f;
+    check(startSame, "the start values are program 0's: the name shown is the sound heard");
     const int NP = p.e->numPrograms;
     bool pn = true;
     for (int i = 0; i < NP; i++) {
@@ -356,10 +362,10 @@ int main(int argc, char **argv)
             p.e->setParameter(p.e, 1 + (int)(rnd() % (p.e->numParams - 4)), (float)(rnd() % 1000) / 999.0f);
         auto st = render(p, 44100 * 9, e, {256, 33, 512});
         check(finite(st) && peak(st) < 4.0, "a storm of parameters and MIDI: finite and bounded");
-        /* the sound tame again (INIT), every note let go: silent in the end */
+        /* program 0 again, every note let go: silent in the end (program 0 is a pad in a big hall, so its tail gets 15 seconds) */
         p.d(effSetProgram, 0, 0);
-        auto tail = render(p, 44100 * 10, {{0, 0xB0, 123, 0}}, {512});
-        check(rms(tail, 44100 * 9, 44100 * 10) < 1e-5, "every voice ends after ALL NOTES OFF");
+        auto tail = render(p, 44100 * 16, {{0, 0xB0, 123, 0}}, {512});
+        check(rms(tail, 44100 * 15, 44100 * 16) < 1e-5, "every voice ends after ALL NOTES OFF");
     }
 
     /* QUALITY: ECO and HIGH, VOICES 8 and 16: all play */
@@ -404,7 +410,7 @@ int main(int argc, char **argv)
         check(rms(s, 4410, 44100 * 3) > 1e-3 && rms(s, 44100 * 5, 44100 * 6) < 1e-3, "the arp plays on the tempo and stops");
     }
 
-    /* CPU: every factory program's worst, and a big chord on the heaviest (Liquid Glass) at ECO and HIGH, 8 voices */
+    /* CPU: every factory program's worst, and a big chord on the heaviest (Hydra Dawn) at ECO and HIGH, 8 voices */
     {
         int qi = param(p, "Quality");
         double c[2];
@@ -417,7 +423,7 @@ int main(int argc, char **argv)
             render(p, 44100 * 4, {{0, 0xB0, 123, 0}}, {256});
         }
         p.e->setParameter(p.e, qi, 0.0f);
-        std::printf("  CPU, LIQUID GLASS, 8 notes (this computer): ECO %.2f %%, HIGH %.2f %% of a core; the programs' worst: %.2f %%\n",
+        std::printf("  CPU, HYDRA DAWN, 8 notes (this computer): ECO %.2f %%, HIGH %.2f %% of a core; the programs' worst: %.2f %%\n",
                     c[0], c[1], worstCpu);
     }
 
