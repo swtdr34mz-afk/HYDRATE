@@ -3,6 +3,9 @@
 The newest first. When the version in CMakeLists.txt goes up and main builds, the release is made by itself with
 the notes of that version from here.
 
+## 1.2.2
+After saving a sound of your own, the plugin now stays on it (before, Cubase, FL Studio and other VST3 hosts switched to another patch, so the new one had to be loaded again).
+
 ## 1.2.1
 Ten new showcase sounds at the top of the list: Hydra Dawn, Glass Cathedral, Abyss Bass, Neon Cascade, Silk Orchestra,
 Sync Viper, Vox Machina, Harmonic Tides, Brass Monument and Phase Keys. Each one has four macros, plays with mod wheel,

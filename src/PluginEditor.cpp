@@ -1077,7 +1077,7 @@ void Panel::paramMenu(int p, juce::Rectangle<int> screen)
 void Panel::programMenu(juce::Rectangle<int> screen)
 {
     juce::PopupMenu m;
-    int n = proc.getNumPrograms(), cur = proc.getCurrentProgram();
+    int n = proc.programCount(), cur = proc.getCurrentProgram();
     std::map<juce::String, juce::PopupMenu> cats;
     juce::PopupMenu user;
     for (int i = 0; i < n; i++) {
@@ -1107,7 +1107,7 @@ void Panel::programMenu(juce::Rectangle<int> screen)
 }
 void Panel::stepProgram(int d)
 {
-    int n = proc.getNumPrograms();
+    int n = proc.programCount();
     if (n <= 0)
         return;
     proc.setCurrentProgram(((proc.getCurrentProgram() + d) % n + n) % n);
