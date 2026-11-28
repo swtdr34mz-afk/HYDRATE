@@ -13,7 +13,7 @@ if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-project(HYDRATE VERSION 1.1.5 LANGUAGES C CXX)
+project(HYDRATE VERSION 1.2.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -90,4 +90,12 @@ if(HYDRATE_SNAPSHOT)
         JucePlugin_Build_Standalone=0 JUCE_ALSA=0 JUCE_JACK=0 JUCE_USE_XRANDR=0 JUCE_USE_XINERAMA=0 JUCE_USE_XSHM=0
         JUCE_USE_XRENDER=0 JUCE_USE_XCURSOR=0)
     target_link_libraries(HydrateShot PRIVATE HydrateData juce::juce_audio_utils juce::juce_recommended_config_flags)
+    # the MPC skin's renderer (mpc/skin/render_skin.cpp): each MPC page with the VST3's art, every control at every value
+    juce_add_console_app(HydrateSkin PRODUCT_NAME "HydrateSkin")
+    target_sources(HydrateSkin PRIVATE mpc/skin/render_skin.cpp src/PluginProcessor.cpp src/PluginEditor.cpp src/ui/Look.cpp ${HYDRATE_DSP})
+    target_include_directories(HydrateSkin PRIVATE dsp src)
+    target_compile_definitions(HydrateSkin PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_STANDALONE_APPLICATION=1
+        JucePlugin_Build_Standalone=0 JUCE_ALSA=0 JUCE_JACK=0 JUCE_USE_XRANDR=0 JUCE_USE_XINERAMA=0 JUCE_USE_XSHM=0
+        JUCE_USE_XRENDER=0 JUCE_USE_XCURSOR=0)
+    target_link_libraries(HydrateSkin PRIVATE HydrateData juce::juce_audio_utils juce::juce_recommended_config_flags)
 endif()

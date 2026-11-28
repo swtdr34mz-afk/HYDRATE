@@ -1,0 +1,17 @@
+{
+  "name": "HYDRATE",
+  "manufacturer": "swtdr34mz",
+  "version": "1.2.0",
+  "format": "vst2",
+  "kind": "instrument",
+  "uid": "Hydr",
+  "numInputs": 0,
+  "numOutputs": 2,
+  "category": "Synth",
+  "file32": "VST/hydrate-arm32.so",
+  "file64": "VST/hydrate-arm64.so",
+  "description": "HYDRATE: a wave-morphing polysynth in the manner of the ASM Hydrasynth. Three oscillators with 219 waves and WaveScan, four Mutants (FM-Linear, Wavestack, Osc Sync, PW-ASM, PW-Squeeze, Harmonic, Phase Mod), ring mod and noise, two filters with the classic types, five envelopes, five LFOs, a 32-slot mod matrix, eight macros, arp with phrases, effects, delay and reverb. 8 or 16 voices. The same engine as the HYDRATE VST3.",
+  "author": "swtdr34mz",
+  "url": "https://github.com/swtdr34mz-afk/HYDRATE",
+  "license": "MPL-2.0"
+}
