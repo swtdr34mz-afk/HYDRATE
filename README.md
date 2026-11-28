@@ -32,6 +32,8 @@ xattr -cr ~/Library/Audio/Plug-Ins/VST3/HYDRATE.vst3 ~/Library/Audio/Plug-Ins/Co
 
 Eigene Patches (SAVE) landen in `Dokumente/HYDRATE/Patches` (wenn Windows den Ordner sperrt: in AppData).
 
+**Linux (Bitwig, Reaper, Ardour, ...):** Die `.tar.gz` entpacken. `HYDRATE.vst3` nach `~/.vst3/` kopieren, `HYDRATE.lv2` nach `~/.lv2/`. Die App `HYDRATE` startet auch ohne DAW. 64 Bit, gebaut auf Ubuntu 22.04.
+
 ## What it has
 
 - **Three oscillators** per voice with **219 waves** in the Hydrasynth's 34 groups (Classic, Pulse, Horizon …
