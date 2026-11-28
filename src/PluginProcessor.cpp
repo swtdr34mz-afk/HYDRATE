@@ -113,7 +113,7 @@ void HydrateProcessor::loadPatch(const Patch &p) { applyPatch(p, true); }
 
 void HydrateProcessor::setCurrentProgram(int index)
 {
-    if (index < 0 || index >= getNumPrograms())
+    if (index < 0 || index >= programCount())
         return;
     program = index;
     applyPatch(index < factoryCount() ? factory(index) : userPatches[(size_t)(index - factoryCount())], true);
@@ -123,7 +123,7 @@ const juce::String HydrateProcessor::getProgramName(int index)
 {
     if (index >= 0 && index < factoryCount())
         return juce::String(factory(index).name);
-    if (index >= factoryCount() && index < getNumPrograms())
+    if (index >= factoryCount() && index < programCount())
         return juce::String(userPatches[(size_t)(index - factoryCount())].name);
     return {};
 }
