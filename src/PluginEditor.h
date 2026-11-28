@@ -104,7 +104,10 @@ private:
     void initMenu(juce::Rectangle<int> screen, bool random);
     int ctlAt(juce::Point<float> p) const;
     juce::String moduleName(Module m) const;
-    juce::Component::SafePointer<juce::AlertWindow> dialog;
+    std::unique_ptr<juce::AlertWindow> saveWin;
+    juce::String flashText;
+    juce::uint32 flashUntil = 0;
+    void flash(const juce::String &t);
 };
 
 class HydrateEditor : public juce::AudioProcessorEditor

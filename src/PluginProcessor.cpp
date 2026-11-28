@@ -158,6 +158,11 @@ juce::File HydrateProcessor::patchFolder()
 {
     return juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile("HYDRATE").getChildFile("Patches");
 }
+/* the second place: when Windows keeps apps out of Documents (Controlled folder access, OneDrive), patches go here */
+juce::File HydrateProcessor::patchFolder2()
+{
+    return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("HYDRATE").getChildFile("Patches");
+}
 void HydrateProcessor::patchToXml(const Patch &p, juce::XmlElement &x)
 {
     x.setAttribute("name", juce::String(p.name));
@@ -183,15 +188,20 @@ bool HydrateProcessor::patchFromXml(const juce::XmlElement &x, Patch &p)
 void HydrateProcessor::loadUserPatches()
 {
     userPatches.clear();
-    auto files = patchFolder().findChildFiles(juce::File::findFiles, false, "*.hydrate");
-    files.sort();
-    for (auto &f : files)
-        if (auto xml = juce::XmlDocument::parse(f))
-            if (xml->hasTagName("HYDRATEPATCH")) {
-                Patch p;
-                if (patchFromXml(*xml, p))
-                    userPatches.push_back(p);
-            }
+    juce::StringArray names;
+    for (auto folder : {patchFolder(), patchFolder2()}) {
+        auto files = folder.findChildFiles(juce::File::findFiles, false, "*.hydrate");
+        files.sort();
+        for (auto &f : files)
+            if (auto xml = juce::XmlDocument::parse(f))
+                if (xml->hasTagName("HYDRATEPATCH")) {
+                    Patch p;
+                    if (patchFromXml(*xml, p) && !names.contains(juce::String(p.name))) {
+                        names.add(juce::String(p.name));
+                        userPatches.push_back(p);
+                    }
+                }
+    }
 }
 int HydrateProcessor::writePatch(const juce::String &name)
 {
@@ -204,9 +214,19 @@ int HydrateProcessor::writePatch(const juce::String &name)
         std::snprintf(p.category, sizeof p.category, "User");
     juce::XmlElement xml("HYDRATEPATCH");
     patchToXml(p, xml);
-    auto folder = patchFolder();
-    folder.createDirectory();
-    if (!xml.writeTo(folder.getChildFile(juce::File::createLegalFileName(clean) + ".hydrate")))
+    auto fname = juce::File::createLegalFileName(clean) + ".hydrate";
+    bool ok = false;
+    for (auto folder : {patchFolder(), patchFolder2()}) {
+        folder.createDirectory();
+        auto f = folder.getChildFile(fname);
+        /* written and read back: only then it counts as saved */
+        if (xml.writeTo(f) && f.existsAsFile() && juce::XmlDocument::parse(f) != nullptr) {
+            savedTo = f;
+            ok = true;
+            break;
+        }
+    }
+    if (!ok)
         return -1;
     setPatchName(clean);
     loadUserPatches();
