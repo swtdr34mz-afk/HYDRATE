@@ -3,6 +3,11 @@
 The newest first. When the version in CMakeLists.txt goes up and main builds, the release is made by itself with
 the notes of that version from here.
 
+## 1.2.0
+New: HYDRATE for the MPC (MPC XL, Live III and the 32-bit MPCs, OS 3.10.1 or newer). The same engine as the plugin,
+six touch pages in the HYDRATE look (OSC, MUTANT, FILTER, ENV, MOD, FX/ARP) with the Q-Links on every page, the 31
+factory patches as programs, 8 or 16 voices, ECO or HIGH.
+
 ## 1.1.5
 New: HYDRATE for Linux - VST3, LV2 and a standalone app (64-bit, built on Ubuntu 22.04). Checked with pluginval like the Windows version.
 

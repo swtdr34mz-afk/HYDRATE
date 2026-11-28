@@ -1,7 +1,8 @@
 # HYDRATE
 
 A wave-morphing polysynth in the manner of the ASM **Hydrasynth**, as a **VST3** for Windows and the Mac, an
-**AU** and a **standalone app** for the Mac. 8 or 16 voices (switchable). By **swtdr34mz**.
+**AU** and a **standalone app** for the Mac, and as a plugin for the **Akai MPC** (see
+[mpc/plugin/README.md](mpc/plugin/README.md)). 8 or 16 voices (switchable). By **swtdr34mz**.
 
 Unofficial: not made, endorsed or supported by Ashun Sound Machines. The waves, filters, effects, phrases and
 factory patches are HYDRATE's own, built after the Hydrasynth's architecture as its owner's manual (2.2.0)
