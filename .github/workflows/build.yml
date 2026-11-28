@@ -117,14 +117,23 @@ jobs:
             HYDRATE-*.tar.gz
       - name: automatic release (a new version on main)
         # the Windows and the Mac job each put their downloads in: the first makes the release, the other adds to it
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        # (by hand - Actions -> build -> Run workflow on main: a download the release is missing is added to it)
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           v=$(sed -n 's/^project(HYDRATE VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
           if [ -z "$v" ]; then echo "no version found"; exit 0; fi
-          files=$(ls HYDRATE-*.zip HYDRATE-*.tar.gz 2>/dev/null)
+          files=$(ls HYDRATE-*.zip HYDRATE-*.tar.gz 2>/dev/null || true)   # (Windows: no .tar.gz)
+          [ -n "$files" ] || { echo "nothing to release"; exit 0; }
+          if [ "${{ github.event_name }}" = workflow_dispatch ]; then
+            have=$(gh release view "v$v" --json assets -q '.assets[].name' 2>/dev/null || true)
+            for f in $files; do
+              if echo "$have" | grep -qx "$f"; then echo "$f is in v$v already"; else gh release upload "v$v" "$f"; fi
+            done
+            exit 0
+          fi
           if ! gh release view "v$v" >/dev/null 2>&1; then
             awk -v v="$v" '$0 ~ "^## " { on = ($2 == v) ; next } on' CHANGES.md > notes.md || true
             [ -s notes.md ] || echo "HYDRATE $v" > notes.md
