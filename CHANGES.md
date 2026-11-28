@@ -3,6 +3,11 @@
 The newest first. When the version in CMakeLists.txt goes up and main builds, the release is made by itself with
 the notes of that version from here.
 
+## 1.3.0
+Sharing sounds made easy: the SAVE window has two new buttons.
+- **Folder** opens the folder with your own patches in Explorer, Finder or the file manager.
+- **Import...** takes in patches from someone else: pick one or more `.hydrate` files, or a `.zip` of them. They show up in the list right away; a patch you already have is not replaced.
+
 ## 1.2.2
 After saving a sound of your own, the plugin now stays on it (before, Cubase, FL Studio and other VST3 hosts switched to another patch, so the new one had to be loaded again).
 
