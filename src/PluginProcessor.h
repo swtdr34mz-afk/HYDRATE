@@ -76,6 +76,8 @@ public:
     void loadPatch(const hy::Patch &p);        /* (the editor's INIT, RANDOM: a whole patch) */
     std::vector<hy::Patch> userPatches;
     static juce::File patchFolder();
+    static juce::File patchFolder2();
+    juce::File savedTo;                          /* where the last SAVE went */
     void loadUserPatches();
     int writePatch(const juce::String &name);
 

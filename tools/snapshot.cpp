@@ -2,9 +2,12 @@
  * Copyright (C) 2026 swtdr34mz (HYDRATE) */
 /* A picture of the editor (a PNG), without a window: for checking the panel's drawing.
  *   HydrateShot out.png [scale] [patch] [module] [page]
+ *   HydrateShot --patchtest      SAVE a patch, load it again (another instance), and through the host's state
  *   HydrateShot --clicktest      right clicks on controls must change no value; a left click must */
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "Presets.h"
+#include "Params.h"
 
 int main(int argc, char **argv)
 {
@@ -12,6 +15,42 @@ int main(int argc, char **argv)
     juce::String out = argc > 1 ? argv[1] : "shot.png";
     float scale = argc > 2 ? (float)std::atof(argv[2]) : 1.0f;
     int prog = argc > 3 ? std::atoi(argv[3]) : 0;
+    if (out == "--patchtest") {
+        int bad = 0;
+        HydrateProcessor a;
+        a.loadPatch(hy::randomPatch(777));
+        auto want = a.currentPatch();
+        int prog = a.writePatch("ZZ Patch Test");
+        std::printf("written as program %d (%s)\n", prog, a.getProgramName(prog).toRawUTF8());
+        HydrateProcessor b;
+        int found = -1;
+        for (int i = 0; i < b.getNumPrograms(); i++)
+            if (b.getProgramName(i) == "ZZ Patch Test") found = i;
+        if (found < 0) { std::printf("saved patch not in the list\n"); bad++; }
+        else {
+            b.setCurrentProgram(found);
+            auto got = b.currentPatch();
+            int diff = 0;
+            for (int i = 0; i < hy::NPARAM; i++)
+                if (std::fabs(got.v[i] - want.v[i]) > 1e-3f) { if (diff < 8) std::printf("  param %d (%s): %g vs %g\n", i, hy::pdef(i).id, got.v[i], want.v[i]); diff++; }
+            std::printf("loaded back: %s, %d values differ\n", b.patchName().toRawUTF8(), diff);
+            if (diff || b.patchName() != "ZZ Patch Test") bad++;
+        }
+        /* the host's project: state out of one instance into a new one */
+        juce::MemoryBlock st;
+        b.getStateInformation(st);
+        HydrateProcessor c;
+        c.setStateInformation(st.getData(), (int)st.getSize());
+        auto got = c.currentPatch();
+        int diff = 0;
+        for (int i = 0; i < hy::NPARAM; i++)
+            if (std::fabs(got.v[i] - want.v[i]) > 1e-3f) diff++;
+        std::printf("project reload: %s, %d values differ\n", c.patchName().toRawUTF8(), diff);
+        if (diff || c.patchName() != "ZZ Patch Test") bad++;
+        HydrateProcessor::patchFolder().getChildFile("ZZ Patch Test.hydrate").deleteFile();
+        std::printf(bad ? "patch test FAILED\n" : "patch test passed\n");
+        return bad ? 1 : 0;
+    }
     HydrateProcessor proc;
     proc.setCurrentProgram(prog);
     proc.uiScale = 1.0f;

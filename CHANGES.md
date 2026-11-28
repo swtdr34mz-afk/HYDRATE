@@ -3,6 +3,11 @@
 The newest first. When the version in CMakeLists.txt goes up and main builds, the release is made by itself with
 the notes of that version from here.
 
+## 1.1.3
+User patches: SAVE fixed. The save window now opens inside the plugin (before, it could open hidden behind the
+DAW's plugin window, so nothing got saved). If Windows keeps apps out of the Documents folder, patches are saved in
+AppData/HYDRATE/Patches instead. The display shows "SAVED: name" (or "SAVE FAILED").
+
 ## 1.1.2
 RANDOM button fixed: every press gives a new, playable sound (SHIFT + RANDOM on a module page: only that module).
 INIT, BROWSE and the value menus now open inside the plugin window.

@@ -744,8 +744,10 @@ HydratePanel::HydratePanel(HydrateProcessor &p) : proc(p)
 HydratePanel::~HydratePanel()
 {
     stopTimer();
-    if (dialog != nullptr)
-        dialog->exitModalState(0);
+    if (saveWin != nullptr) {
+        saveWin->exitModalState(0);
+        saveWin.reset();
+    }
     setLookAndFeel(nullptr);
 }
 
@@ -760,7 +762,7 @@ void Panel::timerCallback()
         proc.learnedSplit.store(0);
     }
     /* repaint when anything shown changed */
-    double s = (double)module * 7.0 + (double)page * 131.0 + (double)macroSel * 17.0 + (double)filterSel * 3.0 + touched * 0.37;
+    double s = (juce::Time::getMillisecondCounter() < flashUntil ? 977.0 : 0.0) + (double)module * 7.0 + (double)page * 131.0 + (double)macroSel * 17.0 + (double)filterSel * 3.0 + touched * 0.37;
     int k = 0;
     for (auto &c : ctls) {
         k++;
@@ -1094,8 +1096,9 @@ void Panel::programMenu(juce::Rectangle<int> screen)
         if (r == 10000)
             proc.loadUserPatches();
         else if (r == 10001) {
-            HydrateProcessor::patchFolder().createDirectory();
-            HydrateProcessor::patchFolder().startAsProcess();
+            auto f = proc.savedTo.existsAsFile() ? proc.savedTo.getParentDirectory() : HydrateProcessor::patchFolder();
+            f.createDirectory();
+            f.startAsProcess();
         } else if (r > 0)
             proc.setCurrentProgram(r - 1);
         repaint();
@@ -1111,19 +1114,46 @@ void Panel::stepProgram(int d)
 }
 void Panel::saveDialog()
 {
-    if (dialog != nullptr)
+    if (saveWin != nullptr)
         return;
-    auto *w = new juce::AlertWindow("SAVE", "The patch's name (it goes into Documents/HYDRATE/Patches):", juce::MessageBoxIconType::NoIcon);
+    /* inside the plugin's window: a window of its own can open behind the host's plugin window */
+    saveWin = std::make_unique<juce::AlertWindow>("SAVE", "The patch's name:", juce::MessageBoxIconType::NoIcon);
+    auto *w = saveWin.get();
     w->setLookAndFeel(&look);
     w->addTextEditor("name", proc.patchName());
     w->addButton("Save", 1, juce::KeyPress(juce::KeyPress::returnKey));
     w->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
-    dialog = w;
-    w->enterModalState(true, juce::ModalCallbackFunction::create([this, w](int r) {
-        if (r == 1)
-            proc.writePatch(w->getTextEditorContents("name"));
-        repaint();
-    }), true);
+    addAndMakeVisible(w);
+    w->setCentrePosition(W / 2, H / 2);
+    juce::Component::SafePointer<Panel> self(this);
+    w->enterModalState(true, juce::ModalCallbackFunction::create([self](int r) {
+        if (self == nullptr || self->saveWin == nullptr)
+            return;
+        if (r == 1) {
+            auto name = self->saveWin->getTextEditorContents("name").trim();
+            int prog = self->proc.writePatch(name);
+            if (prog >= 0)
+                self->flash("SAVED: " + name);
+            else
+                self->flash(name.isEmpty() ? "SAVE: NO NAME" : "SAVE FAILED");
+        }
+        juce::MessageManager::callAsync([self] {
+            if (self != nullptr) {
+                self->saveWin.reset();
+                self->repaint();
+            }
+        });
+    }), false);
+    if (auto *ed = w->getTextEditor("name")) {
+        ed->grabKeyboardFocus();
+        ed->selectAll();
+    }
+}
+void Panel::flash(const juce::String &t)
+{
+    flashText = t;
+    flashUntil = juce::Time::getMillisecondCounter() + 3000;
+    repaint();
 }
 
 static std::vector<int> moduleParams(int m)
@@ -1384,7 +1414,12 @@ void Panel::paintMainDisplay(juce::Graphics &g)
     g.setColour(col::oledDim);
     int prog = proc.getCurrentProgram();
     g.drawText(juce::String(prog + 1).paddedLeft('0', 3) + "  " + proc.patchCategory().toUpperCase(), r.reduced(6, 4).withHeight(14), Justification::centredLeft);
-    if (proc.splitLearn.load()) {
+    if (juce::Time::getMillisecondCounter() < flashUntil) {
+        g.setColour(Colour(0xff121214));
+        g.fillRect(r.reduced(4, 2).withHeight(18));
+        g.setColour(col::orangeLit);
+        g.drawText(flashText, r.reduced(6, 4).withHeight(14), Justification::centredLeft);
+    } else if (proc.splitLearn.load()) {
         g.setColour(col::blueLit);
         g.drawText("SPLIT: PLAY KEY", r.reduced(6, 4).withHeight(14), Justification::centredRight);
     } else if (proc.apvts.getRawParameterValue("low_split")->load() > 0.5f) {
