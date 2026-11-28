@@ -82,6 +82,10 @@ Mouse: drag a knob up / down (Shift: fine), the wheel turns it, a double-click r
 field opens its list (waves by group, sources, destinations, types). The patch encoder and ◀ ▶ step through the
 patches, BROWSE lists them by category.
 
+**Section zoom:** click a section's name (SETUP, MAIN SYSTEMS, MASTER CONTROL, ARPEGGIATOR, FILTER CONTROLS,
+MODULE SELECT) and that section fills the window, sharp and fully playable. The X, ESC, a click beside it or on its
+name again brings the whole panel back. Drag the window's corner for the panel's overall size (it is remembered).
+
 ## Building
 
 ```
