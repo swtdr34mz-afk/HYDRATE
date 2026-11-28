@@ -114,11 +114,13 @@ class HydrateEditor : public juce::AudioProcessorEditor
 {
 public:
     explicit HydrateEditor(HydrateProcessor &);
+    ~HydrateEditor() override;
     void resized() override;
 
 private:
     HydrateProcessor &proc;
     juce::SharedResourcePointer<hyui::UiResources> resources;
     HydratePanel panel;
+    bool sized = false;                                  /* (resized() during the constructor keeps nothing) */
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HydrateEditor)
 };
